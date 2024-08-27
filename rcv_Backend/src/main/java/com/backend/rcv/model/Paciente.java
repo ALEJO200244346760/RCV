@@ -3,12 +3,16 @@ package com.backend.rcv.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.Date;
+
 @Entity
 @Data
 public class Paciente {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column
+    private Date fechaRegistro;
     @Column
     private String ubicacion;
     @Column
@@ -25,5 +29,16 @@ public class Paciente {
     private String colesterol;
     @Column
     private String nivelRiesgo;
-
+    @Column
+    private String peso;
+    @Column
+    private String talla;
+    @Column
+    private String imc;
+    @Column
+    private String hipertenso;
+    @Column
+    private String infarto;
+    @Column
+    private String acv;
 }
