@@ -12,7 +12,7 @@ public class Paciente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @Column
-    private Date fechaRegistro;
+    private String fechaRegistro;
     @Column
     private String ubicacion;
     @Column
