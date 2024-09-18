@@ -1,6 +1,5 @@
 package com.backend.rcv.service;
 
-
 import com.backend.rcv.model.Rol;
 import com.backend.rcv.model.Usuario;
 import com.backend.rcv.repository.RolRepository;
@@ -16,6 +15,7 @@ public class UsuarioService {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
     @Autowired
     private RolRepository rolRepository;
 
@@ -36,8 +36,14 @@ public class UsuarioService {
     }
 
     public void deleteById(Long id) {
-        usuarioRepository.deleteById(id);
+        Optional<Usuario> userOpt = usuarioRepository.findById(id);
+        if (userOpt.isPresent()) {
+            usuarioRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Usuario no encontrado");
+        }
     }
+
 
     public void addRoleToUser(Long userId, String roleName) {
         Optional<Usuario> userOpt = usuarioRepository.findById(userId);
@@ -47,11 +53,11 @@ public class UsuarioService {
             if (role == null) {
                 throw new RuntimeException("Rol no encontrado: " + roleName);
             }
-
             usuario.setRol(role);
             usuarioRepository.save(usuario);
         } else {
             throw new RuntimeException("Usuario no encontrado");
         }
     }
+
 }

@@ -40,4 +40,6 @@ public class Paciente {
     private String infarto;
     @Column
     private String acv;
+    @Column
+    private String medicamentos;
 }
