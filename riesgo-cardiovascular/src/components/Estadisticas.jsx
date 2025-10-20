@@ -237,7 +237,7 @@ function Estadisticas() {
                                 : Array.isArray(value) ? value.join(', ') : value;
             return `${label}: ${finalValue}`;
         })
-        .join('\n');
+        .join(' ');
 
     navigator.clipboard.writeText(dataToCopy)
         .then(() => setMensajeNotificacion({ tipo: 'success', texto: `Datos del paciente ID ${paciente.id} copiados.` }))
