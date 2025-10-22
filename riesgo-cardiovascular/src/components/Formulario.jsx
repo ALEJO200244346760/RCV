@@ -675,10 +675,37 @@ const Formulario = () => {
                             <p className="text-sm mt-1">{obtenerTextoRiesgo(nivelRiesgo)}</p>
                         </div>
                         
-                        <div className="my-4 border-t pt-4">
-                            <h3 className="font-semibold text-gray-700 mb-2">Resumen</h3>
-                            <p><strong>IMC:</strong> {imc.valor} ({imc.clasificacion})</p>
-                            <p><strong>Edad:</strong> {datosMujer.edad} años</p>
+                        <div className="my-4 border-t pt-4 text-sm text-gray-800">
+                            <h3 className="font-semibold text-gray-900 mb-2 text-base">Resumen del Paciente</h3>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                {/* Datos Clínicos y Antropométricos */}
+                                <p><strong>DNI:</strong> {datosMujer.dni}</p>
+                                <p><strong>Edad:</strong> {datosMujer.edad} años</p>
+                                <p><strong>IMC:</strong> {imc.valor ? `${imc.valor} (${imc.clasificacion})` : 'No calculado'}</p>
+                                <p><strong>Presión Arterial:</strong> {datosMujer.tensionSistolica}/{datosMujer.tensionDiastolica} mmHg</p>
+                                
+                                {/* Antecedentes de Riesgo Alto */}
+                                {datosMujer.infartoAcvTrombosis === 'Sí' && (
+                                    <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Infarto/ACV/Trombosis</p>
+                                )}
+                                {datosMujer.enfermedadRenalInsuficiencia === 'Sí' && (
+                                    <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Enf. Renal / Insuf. Cardíaca</p>
+                                )}
+
+                                {/* Factores de Riesgo Principales */}
+                                <p><strong>Diabetes:</strong> {datosMujer.medicacionCondiciones.includes('Diabetes') ? 'Sí' : 'No'}</p>
+                                <p><strong>Hipertensión:</strong> {datosMujer.medicacionCondiciones.includes('Hipertensión arterial') ? 'Sí' : 'No'}</p>
+                                <p><strong>Fuma:</strong> {datosMujer.fumaDiario || 'No'}</p>
+                                <p><strong>Alcohol (Riesgo):</strong> {datosMujer.consumoAlcoholRiesgo || 'No'}</p>
+
+                                {/* Otros Datos Relevantes */}
+                                {datosMujer.enfermedadesAutoinmunes === 'Sí' && (
+                                    <p><strong>Enf. Autoinmune:</strong> {datosMujer.autoinmunesTipo.join(', ') || 'Sí'}</p>
+                                )}
+                                {datosMujer.complicacionesEmbarazo.length > 0 && (
+                                    <p className="col-span-2"><strong>Compl. Embarazo:</strong> {datosMujer.complicacionesEmbarazo.join(', ')}</p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="mt-6 flex flex-col md:flex-row gap-3">
