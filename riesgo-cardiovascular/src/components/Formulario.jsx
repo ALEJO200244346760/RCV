@@ -4,62 +4,78 @@ import { calcularRiesgoCardiovascular } from './Calculadora';
 import { obtenerColorRiesgo, obtenerTextoRiesgo } from './ConstFormulario';
 import axiosInstance from '../axiosConfig';
 
-// Estado inicial completo con los nuevos campos
+// *************************************************************************
+// ** ESTADO INICIAL COMPLETO Y ACTUALIZADO **
+// *************************************************************************
+
 const datosInicialesMujer = {
+    // --- Datos de Entrega de Informe ---
     dni: '',
     fechaNacimiento: '', 
     telefono: '',        
     edad: '',
-    familiarCancerMama: null,
-    puncionMama: null,
-    mamaDensa: null,
-    infarto: null,
-    acv: null,
-    enfermedadRenal: null,
+    mail: '', // Nuevo campo
+    genero: 'femenino',
+    
+    // --- Historial y Hábitos ---
+    infartoAcvTrombosis: null, // Pregunta principal SI/NO
+    infartoAcvTrombosisTipo: [], // Sub-opciones: 'infarto', 'ACV', 'Trombosis'
+    enfermedadRenalInsuficiencia: null, // Pregunta principal SI/NO
+    enfermedadRenalInsuficienciaTipo: [], // Sub-opciones: 'enfermedad renal', 'insuficiencia cardíaca'
     tomaMedicacionDiario: null,
-    medicacionCondiciones: [],
+    medicacionCondiciones: [], // Sub-opciones: 'Hipertensión arterial', 'Diabetes', 'Colesterol', 'Otras'
     fumaDiario: null,
-    actividadFisica: null,
-    horasSueno: null,
-    estresCronico: null,
-    estresTipo: '',
-    tumoresGinecologicos: null,
-    tumoresTipo: [],
+    fumaTipo: [], // Sub-opciones: 'tabaco', 'otros'
+    consumoAlcoholRiesgo: null, // Pregunta nueva de alcohol
+    actividadFisica: null, // SI/NO
+    horasSueno: null, // SI/NO
+    horasSuenoProblema: [], // Sub-opciones (si NO): 'Insomnio', 'otros'
+    estresAngustiaCronica: null, // Pregunta principal SI/NO
+    estresTipo: [], // Sub-opciones: 'estrés', 'angustia', 'ansiedad', 'depresión'
     enfermedadesAutoinmunes: null,
-    autoinmunesTipo: [],
-    hivHepatitis: null, // NUEVO CAMPO
-    tuvoHijos: null,
+    autoinmunesTipo: [], // Sub-opciones: 'lupus', 'artritis reumatoidea', 'psoriasis', 'otra'
+    hivHepatitis: null,
+    
+    // --- Historial Ginecológico ---
+    tumoresMama: null, // Pregunta principal SI/NO
+    tumoresMamaTratamiento: [], // Sub-opciones: 'recibió radioterapia', 'recibió quimioterapia', 'recibió cirugía'
+    familiarCancerMama: null, // SI/NO
+    puncionMama: null, // Pregunta principal SI/NO
+    puncionMamaMotivo: [], // Sub-opciones: 'sospecha maligna', 'quiste de leche', 'otro'
+    mamaDensa: null, // 'Sí', 'No', 'No recuerdo', 'No sé lo que es'
+    tuvoHijos: null, // Pregunta principal SI/NO
+    complicacionesEmbarazo: [], // Sub-opciones (si SÍ): 'hipertensión arterial gestacional', etc.
     reproduccionAsistida: null,
-    cantidadHijos: '',
-    complicacionesEmbarazo: null,
-    motivoNoHijos: '',
-    menopausia: null,
-    edadMenopausia: '',
-    ciclosMenstruales: null,
-    metodoAnticonceptivo: '',
-    histerectomia: null,
+    abortosSindromeAntifosfolipidico: null, // SI/NO
+    menstruacionEdadRiesgo: null, // SI/NO
+    menstruacionUltima: null, // Pregunta principal SI/NO
+    menopausiaTipo: [], // Sub-opciones (depende de SI/NO de 'menstruacionUltima')
+    incontinenciaOrgasmos: null, // Pregunta principal SI/NO
+    incontinenciaOrgasmosTipo: [], // Sub-opciones: 'incontinencia', 'falta de orgasmos'
+
+    // --- Datos Antropométricos y Clínicos ---
     peso: '',
     talla: '',
     cintura: '',
     tensionSistolica: '',
     tensionDiastolica: '',
-    genero: 'femenino',
-    colesterol: 'No',
+    colesterol: 'No', // Se mantiene por si se usa en la lógica de riesgo
 };
 
 const Formulario = () => {
     const [datosMujer, setDatosMujer] = useState(datosInicialesMujer);
     const [imc, setImc] = useState({ valor: '', clasificacion: '' });
-    const [nivelColesterolConocido, setNivelColesterolConocido] = useState(false);
-    
     const [nivelRiesgo, setNivelRiesgo] = useState(null);
     const [mensajeExito, setMensajeExito] = useState('');
     const [mostrarModal, setMostrarModal] = useState(false);
     const [modalAdvertencia, setModalAdvertencia] = useState(null);
 
+    // --- Lógica de Cálculo Automático (IMC y Edad) ---
     useEffect(() => {
         const peso = parseFloat(datosMujer.peso);
         const tallaCm = parseFloat(datosMujer.talla);
+
+        // 1. Cálculo de IMC
         if (peso > 0 && tallaCm > 0) {
             const tallaM = tallaCm / 100;
             const imcCalculado = peso / (tallaM * tallaM);
@@ -76,6 +92,7 @@ const Formulario = () => {
             setImc({ valor: '', clasificacion: '' });
         }
         
+        // 2. Cálculo de Edad
         if (datosMujer.fechaNacimiento) {
             const dob = new Date(datosMujer.fechaNacimiento);
             const today = new Date();
@@ -88,13 +105,32 @@ const Formulario = () => {
         }
     }, [datosMujer.peso, datosMujer.talla, datosMujer.fechaNacimiento]);
 
+    // --- Manejadores de Estado ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         setDatosMujer(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleButtonToggle = (name, value) => {
+    const handleRadioToggle = (name, value) => {
         setDatosMujer(prev => ({ ...prev, [name]: value }));
+        // Resetear campos condicionales si la respuesta es 'No'
+        if (value === 'No') {
+            switch(name) {
+                case 'infartoAcvTrombosis': setDatosMujer(prev => ({ ...prev, infartoAcvTrombosisTipo: [] })); break;
+                case 'enfermedadRenalInsuficiencia': setDatosMujer(prev => ({ ...prev, enfermedadRenalInsuficienciaTipo: [] })); break;
+                case 'tomaMedicacionDiario': setDatosMujer(prev => ({ ...prev, medicacionCondiciones: [] })); break;
+                case 'fumaDiario': setDatosMujer(prev => ({ ...prev, fumaTipo: [] })); break;
+                case 'horasSueno': setDatosMujer(prev => ({ ...prev, horasSuenoProblema: [] })); break; // Reset si la respuesta es 'Sí'
+                case 'estresAngustiaCronica': setDatosMujer(prev => ({ ...prev, estresTipo: [] })); break;
+                case 'enfermedadesAutoinmunes': setDatosMujer(prev => ({ ...prev, autoinmunesTipo: [] })); break;
+                case 'tumoresMama': setDatosMujer(prev => ({ ...prev, tumoresMamaTratamiento: [] })); break;
+                case 'puncionMama': setDatosMujer(prev => ({ ...prev, puncionMamaMotivo: [] })); break;
+                case 'tuvoHijos': setDatosMujer(prev => ({ ...prev, complicacionesEmbarazo: [] })); break;
+                case 'menstruacionUltima': setDatosMujer(prev => ({ ...prev, menopausiaTipo: [] })); break;
+                case 'incontinenciaOrgasmos': setDatosMujer(prev => ({ ...prev, incontinenciaOrgasmosTipo: [] })); break;
+                default: break;
+            }
+        }
     };
 
     const handleCheckboxChange = (field, value) => {
@@ -107,15 +143,16 @@ const Formulario = () => {
         });
     };
     
+    // --- Lógica de Envío (manteniendo la estructura original) ---
     const validarCampos = () => {
-        if (!datosMujer.dni || !datosMujer.fechaNacimiento || !datosMujer.tensionSistolica) {
-            setModalAdvertencia('Por favor, complete DNI, Fecha de Nacimiento y Tensión Sistólica para calcular el riesgo.');
+        if (!datosMujer.dni || !datosMujer.fechaNacimiento || !datosMujer.tensionSistolica || !datosMujer.peso || !datosMujer.talla) {
+            setModalAdvertencia('Por favor, complete DNI, Fecha de Nacimiento, Peso, Talla y Tensión Sistólica (mínimo) para guardar y calcular el riesgo.');
             setMostrarModal(true);
             return false;
         }
         const edadNum = parseInt(datosMujer.edad, 10);
-        if (isNaN(edadNum) || edadNum < 18 || edadNum > 100) {
-             setModalAdvertencia('La edad debe ser válida (entre 18 y 100 años). Verifique la fecha de nacimiento.');
+        if (isNaN(edadNum) || edadNum < 1) {
+             setModalAdvertencia('La edad no es válida. Verifique la fecha de nacimiento.');
              setMostrarModal(true);
             return false;
         }
@@ -140,17 +177,25 @@ const Formulario = () => {
         if (!validarCampos()) {
             return;
         }
-        if (datosMujer.infarto === 'Sí' || datosMujer.acv === 'Sí' || datosMujer.enfermedadRenal === 'Sí') {
+
+        // Lógica de Riesgo Crítico (Simplificada para el ejemplo)
+        const tieneRiesgoCritico = datosMujer.infartoAcvTrombosis === 'Sí' || datosMujer.enfermedadRenalInsuficiencia === 'Sí';
+        if (tieneRiesgoCritico) {
             setNivelRiesgo('>30% <40% Muy Alto');
-            setModalAdvertencia(null);
+            setModalAdvertencia('Paciente con historial de infarto/ACV o enfermedad renal. Riesgo Cardiovascular es considerado **Muy Alto**.');
             setMostrarModal(true);
             return;
         }
+        
+        // Uso de la función stub calcularRiesgoCardiovascular
         const edadAjustada = ajustarEdad(parseInt(datosMujer.edad, 10));
         const presionArterial = ajustarPresionArterial(parseInt(datosMujer.tensionSistolica, 10));
         const diabetes = datosMujer.medicacionCondiciones.includes('Diabetes') ? 'si' : 'no'; 
         const fuma = datosMujer.fumaDiario === 'Sí' ? 'si' : 'no';
-        const colesterolParaCalculo = nivelColesterolConocido && datosMujer.colesterol !== 'No' ? parseInt(datosMujer.colesterol, 10) : "No";
+        
+        // Colesterol no se pide en el nuevo formulario, se pasa "No" o se elimina, 
+        // mantendremos "No" para que el stub funcione.
+        const colesterolParaCalculo = "No"; 
 
         const riesgoCalculado = calcularRiesgoCardiovascular(
             edadAjustada, 'femenino', diabetes, fuma, presionArterial, colesterolParaCalculo
@@ -162,28 +207,41 @@ const Formulario = () => {
     
     const guardarPaciente = async () => {
         try {
+            if (!validarCampos()) {
+                 setMostrarModal(false); // No guardar si falló la validación
+                 return;
+            }
+            
             let datosParaEnviar = { ...datosMujer };
-
-            // CORRECCIÓN: Se agrega la fecha de registro al momento de guardar
             const hoy = new Date();
             datosParaEnviar.fechaRegistro = hoy.toISOString().split('T')[0]; // Formato YYYY-MM-DD
 
-            if (datosParaEnviar.ciclosMenstruales === 'No' && datosParaEnviar.edadMenopausia) {
-                datosParaEnviar.menopausia = 'Sí';
-            } else {
-                datosParaEnviar.menopausia = 'No';
-            }
-
-            Object.keys(datosParaEnviar).forEach(key => {
-                if (datosParaEnviar[key] === null) {
-                    datosParaEnviar[key] = '';
-                }
-            });
-
-            const camposArray = ['medicacionCondiciones', 'autoinmunesTipo', 'tumoresTipo'];
+            // Convertir arrays de checkboxes a string para el backend (ej: 'opcion1, opcion2')
+            const camposArray = [
+                'infartoAcvTrombosisTipo', 
+                'enfermedadRenalInsuficienciaTipo', 
+                'medicacionCondiciones', 
+                'fumaTipo', 
+                'horasSuenoProblema', 
+                'estresTipo', 
+                'autoinmunesTipo', 
+                'tumoresMamaTratamiento', 
+                'puncionMamaMotivo', 
+                'complicacionesEmbarazo', 
+                'menopausiaTipo', 
+                'incontinenciaOrgasmosTipo'
+            ];
+            
             camposArray.forEach(campo => {
                 if (Array.isArray(datosParaEnviar[campo])) {
                     datosParaEnviar[campo] = datosParaEnviar[campo].join(', ');
+                }
+            });
+
+            // Limpiar valores 'null' o no utilizados
+            Object.keys(datosParaEnviar).forEach(key => {
+                if (datosParaEnviar[key] === null) {
+                    datosParaEnviar[key] = '';
                 }
             });
 
@@ -192,7 +250,10 @@ const Formulario = () => {
                 imc: `${imc.valor} (${imc.clasificacion})`,
                 nivelRiesgo: nivelRiesgo,
             };
-
+            
+            // Eliminar campos temporales que no van al modelo de datos final si es necesario
+            delete payload.colesterol;
+            
             await axiosInstance.post('/api/pacientes', payload);
             setMensajeExito('Paciente guardado con éxito');
             setMostrarModal(false);
@@ -203,9 +264,6 @@ const Formulario = () => {
 
         } catch (error) {
             console.error('Error al guardar los datos:', error);
-            if (error.response) {
-                console.error('Detalle del error del backend:', error.response.data);
-            }
             setModalAdvertencia('Ocurrió un error al guardar los datos. Revise la consola para más detalles.');
             setMostrarModal(true);
         }
@@ -215,320 +273,345 @@ const Formulario = () => {
         setMostrarModal(false);
         setModalAdvertencia(null);
     };
-
-    const renderRiesgoGrid = (riesgo) => {
-        const riesgos = ['<10% Bajo', '>10% <20% Moderado', '>20% <30% Alto', '>30% <40% Muy Alto', '>40% Crítico'];
-        return (
-            <div className="grid grid-cols-12 gap-2">
-                {riesgos.map((nivel) => (
-                    <React.Fragment key={nivel}>
-                        <div className={`col-span-4 ${obtenerColorRiesgo(nivel)}`}></div> 
-                        <div className={`col-span-8 ${riesgo === nivel ? obtenerColorRiesgo(nivel) : 'bg-gray-300'} p-2`}>
-                            <span className={`${riesgo === nivel ? 'text-white' : 'text-gray-600'}`}>{obtenerTextoRiesgo(nivel)}</span>
-                        </div>
-                    </React.Fragment>
+    
+    // --- Componentes Reutilizables ---
+    
+    const RadioGroup = ({ label, name, options = ['Sí', 'No'], conditionalContent, isRequired=false }) => (
+        <div className="flex flex-col border p-3 rounded-lg bg-white shadow-sm">
+            <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+            <div className="mt-1 flex flex-wrap gap-4">
+                {options.map(opt => (
+                    <label key={opt} className="inline-flex items-center text-gray-700">
+                        <input
+                            type="radio"
+                            name={name}
+                            value={opt}
+                            checked={datosMujer[name] === opt}
+                            onChange={() => handleRadioToggle(name, opt)}
+                            className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                        />
+                        <span className="ml-2">{opt}</span>
+                    </label>
                 ))}
             </div>
-        );
-    };
+            {/* Contenido Condicional (puede ser Input o CheckboxGroup) */}
+            {conditionalContent && datosMujer[name] && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                    {conditionalContent(datosMujer[name])}
+                </div>
+            )}
+        </div>
+    );
+    
+    const CheckboxGroup = ({ label, fieldName, options, isRequired=false }) => (
+        <div className="flex flex-col">
+            <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-2">
+                {options.map(opt => (
+                    <label key={opt} className="inline-flex items-center text-gray-700">
+                        <input
+                            type="checkbox"
+                            value={opt}
+                            checked={Array.isArray(datosMujer[fieldName]) ? datosMujer[fieldName].includes(opt) : false}
+                            onChange={() => handleCheckboxChange(fieldName, opt)}
+                            className="form-checkbox h-4 w-4 text-indigo-600 rounded"
+                        />
+                        <span className="ml-2 text-sm">{opt}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+    
+    const InputField = ({ label, name, type = 'text', placeholder, isRequired = false, min, max }) => (
+        <div>
+            <label htmlFor={name} className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+            <input 
+                type={type} 
+                name={name} 
+                id={name} 
+                value={datosMujer[name] || ''} 
+                onChange={handleChange} 
+                placeholder={placeholder} 
+                required={isRequired}
+                min={min}
+                max={max}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            />
+        </div>
+    );
+    // --- Fin Componentes Reutilizables ---
 
     return (
-        <div className="flex flex-col items-center p-6 max-w-2xl mx-auto">
-            <form className="w-full space-y-6">
-                <h1 className="text-3xl font-bold mb-6">Formulario de Salud Femenina y Riesgo Cardiovascular</h1>
+        <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen font-sans">
+            <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl w-full">
+                <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">
+                    Formulario de Salud Femenina y Riesgo Cardiovascular
+                </h1> 
+
+                {/* Mensaje de éxito */}
+                {mensajeExito && <div className="fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-md shadow-lg z-50">{mensajeExito}</div>}
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700">DNI:</label>
-                        <input type="number" name="dni" value={datosMujer.dni} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700">Fecha de Nacimiento:</label>
-                        <input type="date" name="fechaNacimiento" value={datosMujer.fechaNacimiento} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700">Edad (Automática):</label>
-                        <input type="text" name="edad" value={datosMujer.edad} readOnly disabled className="mt-1 p-2 border rounded-md bg-gray-100 cursor-not-allowed"/>
-                    </div>
-                    <div className="flex flex-col">
-                        <label className="text-sm font-medium text-gray-700">Teléfono:</label>
-                        <input type="tel" name="telefono" value={datosMujer.telefono} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                </div>
+                <form className="w-full space-y-10" onSubmit={(e) => { e.preventDefault(); calcularRiesgo(); }}>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium text-gray-700">Género:</label>
-                    <button type="button" className="p-2 border rounded bg-indigo-500 text-white w-full md:w-1/3 cursor-not-allowed">Femenino</button>
-                </div>
-                
-                <h2 className="text-xl font-semibold border-b pb-2 pt-4">Salud Mamaria</h2>
-                
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Tiene algún familiar con cáncer de mama?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('familiarCancerMama', o)} className={`p-2 border rounded ${datosMujer.familiarCancerMama === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Alguna vez le hicieron alguna punción de mama?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('puncionMama', o)} className={`p-2 border rounded ${datosMujer.puncionMama === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Le dijeron si tenía mama densa al ver su mamografía?</label>
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                        {['Sí', 'No', 'No recuerdo', 'No sé lo que es'].map(o => (
-                            <button key={o} type="button" onClick={() => handleButtonToggle('mamaDensa', o)} className={`p-2 border rounded ${datosMujer.mamaDensa === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>
-                        ))}
-                    </div>
-                </div>
+                    {/* --- SECCIÓN 1: HISTORIAL Y HÁBITOS --- */}
+                    <div className="space-y-6 p-4 border border-indigo-200 rounded-lg bg-indigo-50">
+                        <h2 className="text-xl font-bold text-indigo-800 border-b pb-1">1. Historial y Hábitos</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            <RadioGroup 
+                                label="¿Alguna vez ha tenido un infarto, un ACV o Trombosis arterial?" 
+                                name="infartoAcvTrombosis" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Seleccione el antecedente:" 
+                                        fieldName="infartoAcvTrombosisTipo" 
+                                        options={['infarto', 'ACV', 'Trombosis arterial']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Tiene enfermedad Renal Crónica o Insuficiencia Cardíaca?" 
+                                name="enfermedadRenalInsuficiencia" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Seleccione la condición:" 
+                                        fieldName="enfermedadRenalInsuficienciaTipo" 
+                                        options={['enfermedad renal', 'insuficiencia cardíaca']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Toma medicación a diario?" 
+                                name="tomaMedicacionDiario" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="¿Para qué condición?" 
+                                        fieldName="medicacionCondiciones" 
+                                        options={['Hipertensión arterial', 'Diabetes', 'Colesterol', 'Otras']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Fuma a diario?" 
+                                name="fumaDiario" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="¿Qué fuma?" 
+                                        fieldName="fumaTipo" 
+                                        options={['tabaco', 'otros']} 
+                                    />
+                                )}
+                            />
 
-                <h2 className="text-xl font-semibold border-b pb-2 pt-4">Historial y Hábitos</h2>
+                            <RadioGroup label="¿Toma más de 5 vasos de cerveza, o más de 3 copas de vino semanales?" name="consumoAlcoholRiesgo" />
+                            <RadioGroup label="¿Realiza actividad física 150 minutos semanales?" name="actividadFisica" />
+                            
+                            <RadioGroup 
+                                label="¿Duerme entre 6 y 8 horas diarias?" 
+                                name="horasSueno" 
+                                conditionalContent={(respuesta) => respuesta === 'No' && (
+                                    <CheckboxGroup 
+                                        label="¿Qué problema presenta?" 
+                                        fieldName="horasSuenoProblema" 
+                                        options={['Insomnio', 'otros']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Siente que presenta estrés, angustia, ansiedad o depresión en forma permanente o Crónica?" 
+                                name="estresAngustiaCronica" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Seleccione el problema:" 
+                                        fieldName="estresTipo" 
+                                        options={['estrés', 'angustia', 'ansiedad', 'depresión']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Le dijeron alguna vez que tiene alguna enfermedad autoinmune?" 
+                                name="enfermedadesAutoinmunes" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Seleccione la enfermedad:" 
+                                        fieldName="autoinmunesTipo" 
+                                        options={['lupus', 'artritis reumatoidea', 'psoriasis', 'otra']} 
+                                    />
+                                )}
+                            />
+                            
+                            <RadioGroup label="¿Presenta HIV o Hepatitis B/C?" name="hivHepatitis" />
+                        </div>
+                    </div>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Ha tenido un infarto?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('infarto', o)} className={`p-2 border rounded ${datosMujer.infarto === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Ha tenido un ACV?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('acv', o)} className={`p-2 border rounded ${datosMujer.acv === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Tiene enfermedad Renal Crónica?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('enfermedadRenal', o)} className={`p-2 border rounded ${datosMujer.enfermedadRenal === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
+                    {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO --- */}
+                    <div className="space-y-6 p-4 border border-pink-300 rounded-lg bg-pink-100">
+                        <h2 className="text-xl font-bold text-pink-800 border-b pb-1">2. Historial Ginecológico</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Toma medicación a diario?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('tomaMedicacionDiario', o)} className={`p-2 border rounded ${datosMujer.tomaMedicacionDiario === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
+                            <RadioGroup 
+                                label="¿Antecedentes de tumores de mama?" 
+                                name="tumoresMama" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="¿Qué tratamiento recibió?" 
+                                        fieldName="tumoresMamaTratamiento" 
+                                        options={['recibió radioterapia', 'recibió quimioterapia', 'recibió cirugía']} 
+                                    />
+                                )}
+                            />
+
+                            <RadioGroup label="¿Tiene algún familiar con cáncer de mama?" name="familiarCancerMama" />
+
+                            <RadioGroup 
+                                label="¿Alguna vez le hicieron alguna punción de mama?" 
+                                name="puncionMama" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="¿Cuál fue el motivo?" 
+                                        fieldName="puncionMamaMotivo" 
+                                        options={['sospecha maligna', 'quiste de leche', 'otro']} 
+                                    />
+                                )}
+                            />
+
+                            <RadioGroup 
+                                label="¿Le dijeron si tenía mama densa al ver su mamografía?" 
+                                name="mamaDensa" 
+                                options={['Sí', 'No', 'No recuerdo', 'No sé lo que es']}
+                            />
+
+                            <RadioGroup 
+                                label="¿Tuvo hijos?" 
+                                name="tuvoHijos" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Complicaciones en algún embarazo:" 
+                                        fieldName="complicacionesEmbarazo" 
+                                        options={['hipertensión arterial gestacional', 'preeclampsia', 'eclampsia', 'diabetes gestacional', 'parto prematuro antes de las 37 semanas de gestación']} 
+                                    />
+                                )}
+                            />
+
+                            <RadioGroup label="¿Utilizó reproducción asistida?" name="reproduccionAsistida" />
+                            
+                            <RadioGroup 
+                                label="¿Presentó abortos espontáneos (más de 2) o le dijeron que tenía síndrome antifosfolipídico?" 
+                                name="abortosSindromeAntifosfolipidico" 
+                            />
+                            
+                            <RadioGroup 
+                                label="¿Su primera menstruación fue antes de los 10 años o después de los 17?" 
+                                name="menstruacionEdadRiesgo" 
+                            />
+
+                            <RadioGroup 
+                                label="¿Su última menstruación fue hace más de un año?" 
+                                name="menstruacionUltima" 
+                                conditionalContent={(respuesta) => (
+                                    <>
+                                        {respuesta === 'Sí' && (
+                                            <CheckboxGroup 
+                                                label="Causas (si 'Sí'):" 
+                                                fieldName="menopausiaTipo" 
+                                                options={['presenta histerectomía', 'menopausia', 'otra']} 
+                                            />
+                                        )}
+                                        {respuesta === 'No' && (
+                                            <CheckboxGroup 
+                                                label="Estado (si 'No'):" 
+                                                fieldName="menopausiaTipo" 
+                                                options={['perimenopausia', 'ciclos normales', 'anticonceptivos']} 
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            />
+
+                            <RadioGroup 
+                                label="¿Tiene problemas de incontinencia urinaria o falta de orgasmos habitualmente?" 
+                                name="incontinenciaOrgasmos" 
+                                conditionalContent={(respuesta) => respuesta === 'Sí' && (
+                                    <CheckboxGroup 
+                                        label="Seleccione el problema:" 
+                                        fieldName="incontinenciaOrgasmosTipo" 
+                                        options={['incontinencia', 'falta de orgasmos']} 
+                                    />
+                                )}
+                            />
+                        </div>
                     </div>
-                    {datosMujer.tomaMedicacionDiario === 'Sí' && (
-                        <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-2 rounded-r-lg">
-                            {['Diabetes', 'Hipertensión', 'Colesterol','Aspirina o anticuagulantes', 'Tiroides','Corticoides','Medicación para dormir','Algún antidepresivo','Otras'].map(med => (
-                                <div key={med} className="flex items-center">
-                                    <input type="checkbox" id={med} value={med} checked={datosMujer.medicacionCondiciones.includes(med)} onChange={() => handleCheckboxChange('medicacionCondiciones', med)} className="h-4 w-4 rounded"/>
-                                    <label htmlFor={med} className="ml-3 text-sm">{med}</label>
+
+                    {/* --- SECCIÓN 3: DATOS ANTROPOMÉTRICOS Y CLÍNICOS --- */}
+                    <div className="space-y-6 p-4 border border-green-200 rounded-lg bg-green-50">
+                        <h2 className="text-xl font-bold text-green-800 border-b pb-1">3. Datos Antropométricos y Clínicos</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <InputField label="Peso (kg)" name="peso" type="number" min="1" placeholder="Ej: 75.5" isRequired={true} />
+                            <InputField label="Talla (cm)" name="talla" type="number" min="1" placeholder="Ej: 170" isRequired={true} />
+                            <InputField label="Cintura (cm)" name="cintura" type="number" min="1" placeholder="Ej: 90" />
+                            <InputField label="Tensión Sistólica (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} />
+                            <InputField label="Tensión Diastólica (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-white shadow-sm mt-6">
+                            <div>
+                                <h3 className="text-md font-semibold text-gray-700">Índice de Masa Corporal (IMC)</h3>
+                                <p className="text-lg font-bold text-indigo-600 mt-1">{imc.valor ? `${imc.valor} (${imc.clasificacion})` : 'Ingrese Peso y Talla...'}</p>
+                            </div>
+                            <div>
+                                <h3 className="text-md font-semibold text-gray-700">Nivel de Riesgo Cardiovascular</h3>
+                                <div className={`p-2 mt-1 font-bold text-sm rounded-lg ${obtenerColorRiesgo(nivelRiesgo)}`}>
+                                    {nivelRiesgo || 'Presione "Calcular Riesgo"'}
                                 </div>
-                            ))}
+                            </div>
                         </div>
-                    )}
-                </div>
+                    </div>
 
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Fuma a diario?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('fumaDiario', o)} className={`p-2 border rounded ${datosMujer.fumaDiario === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Realiza actividad física 150 minutos semanales?</label>
-                    <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('actividadFisica', o)} className={`p-2 border rounded ${datosMujer.actividadFisica === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Duerme entre 6 y 8 horas diarias?</label>
-                    <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('horasSueno', o)} className={`p-2 border rounded ${datosMujer.horasSueno === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Siente que presenta estrés Crónico?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('estresCronico', o)} className={`p-2 border rounded ${datosMujer.estresCronico === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                    {datosMujer.estresCronico === 'Sí' && (
-                        <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-2 rounded-r-lg">
-                            {['Depresión', 'Otras'].map(tipo => (
-                                <div key={tipo}>
-                                    <input type="radio" id={`estres-${tipo}`} name="estresTipo" value={tipo} checked={datosMujer.estresTipo === tipo} onChange={handleChange} />
-                                    <label htmlFor={`estres-${tipo}`} className="ml-2">{tipo}</label>
-                                </div>
-                            ))}
+                    {/* --- SECCIÓN 4: ENTREGA DE INFORME --- */}
+                    <div className="space-y-6 p-4 border border-gray-300 rounded-lg bg-gray-100">
+                        <h2 className="text-xl font-bold text-gray-800 border-b pb-1">4. Datos de Entrega de Informe</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <InputField label="DNI" name="dni" type="text" placeholder="Número de DNI" isRequired={true} />
+                            <InputField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" isRequired={true} />
+                            <InputField label="Edad (Automática)" name="edad" type="text" isRequired={true} placeholder="Calculada automáticamente" readOnly disabled />
+                            <InputField label="TELÉFONO" name="telefono" type="tel" placeholder="Nro. de contacto" />
+                            <InputField label="MAIL" name="mail" type="email" placeholder="Correo electrónico" />
                         </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Antecedentes de tumores ginecológicos?</label>
-                    <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('tumoresGinecologicos', o)} className={`p-2 border rounded ${datosMujer.tumoresGinecologicos === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
                     </div>
-                    {datosMujer.tumoresGinecologicos === 'Sí' && (
-                         <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-2 rounded-r-lg">
-                            {['Ovarios', 'Mama', 'Útero'].map(t => <div key={t}><input type="checkbox" id={t} value={t} checked={datosMujer.tumoresTipo.includes(t)} onChange={() => handleCheckboxChange('tumoresTipo', t)} /><label htmlFor={t} className="ml-2">{t}</label></div>)}
+                    
+                    {/* --- BOTONES DE ACCIÓN --- */}
+                    <div className="mt-8 flex justify-end space-x-4">
+                        <button 
+                            type="submit"
+                            className="px-6 py-3 border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
+                        >
+                            Calcular Riesgo (Paso 1)
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+            
+            {/* --- MODAL DE RIESGO Y GUARDADO (Mantiene lógica del archivo anterior) --- */}
+            {mostrarModal && nivelRiesgo && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-md shadow-2xl w-full max-w-lg">
+                        <h2 className="text-2xl font-bold mb-4 text-indigo-700">Resultado del Cálculo de Riesgo</h2>
+                        <div className={`p-4 rounded-lg text-center ${obtenerColorRiesgo(nivelRiesgo)}`}>
+                            <h3 className="text-xl font-bold">Riesgo Calculado: {nivelRiesgo}</h3>
+                            <p className="text-sm mt-1">{obtenerTextoRiesgo(nivelRiesgo)}</p>
                         </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Le dijeron alguna vez que tiene alguna enfermedad autoinmune?</label>
-                     <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('enfermedadesAutoinmunes', o)} className={`p-2 border rounded ${datosMujer.enfermedadesAutoinmunes === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                     {datosMujer.enfermedadesAutoinmunes === 'Sí' && (
-                         <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-2 rounded-r-lg">
-                            {['Lupus', 'Artritis', 'Psoriasis', 'Fiebre reumática', 'Otras'].map(e => <div key={e}><input type="checkbox" id={e} value={e} checked={datosMujer.autoinmunesTipo.includes(e)} onChange={() => handleCheckboxChange('autoinmunesTipo', e)} /><label htmlFor={e} className="ml-2">{e}</label></div>)}
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Presenta HIV o Hepatitis B/C?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('hivHepatitis', o)} className={`p-2 border rounded ${datosMujer.hivHepatitis === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-                
-                <h2 className="text-xl font-semibold border-b pb-2 pt-4">Historial Ginecológico</h2>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Tuvo hijos?</label>
-                     <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('tuvoHijos', o)} className={`p-2 border rounded ${datosMujer.tuvoHijos === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Utilizó reproducción asistida?</label>
-                    <div className="flex space-x-2 mt-1">
-                        {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('reproduccionAsistida', o)} className={`p-2 border rounded ${datosMujer.reproduccionAsistida === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                </div>
-
-                {datosMujer.tuvoHijos === 'Sí' && (
-                     <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-4 rounded-r-lg">
-                        <div className="flex flex-col"><label>¿Cuántos?:</label><input type="number" name="cantidadHijos" value={datosMujer.cantidadHijos} onChange={handleChange} className="p-2 border rounded"/></div>
-                        <div className="flex flex-col"><label>¿Tuvo hipertensión o diabetes gestacional?</label><div className="flex space-x-2 mt-1">{['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('complicacionesEmbarazo', o)} className={`p-2 border rounded ${datosMujer.complicacionesEmbarazo === o ? 'bg-green-500 text-white' : ''}`}>{o}</button>)}</div></div>
-                    </div>
-                )}
-                {datosMujer.tuvoHijos === 'No' && (
-                    <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-2 rounded-r-lg">
-                         {['No quiso', 'No pudo', 'Otros'].map(m => <div key={m}><input type="radio" id={m} name="motivoNoHijos" value={m} checked={datosMujer.motivoNoHijos === m} onChange={handleChange} /><label htmlFor={m} className="ml-2">{m}</label></div>)}
-                    </div>
-                )}
-
-                <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Presenta ciclos menstruales?</label>
-                     <div className="flex space-x-2 mt-1">
-                         {['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('ciclosMenstruales', o)} className={`p-2 border rounded ${datosMujer.ciclosMenstruales === o ? 'bg-indigo-500 text-white' : ''}`}>{o}</button>)}
-                    </div>
-                     {datosMujer.ciclosMenstruales === 'Sí' && (
-                        <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 rounded-r-lg">
-                            <label>Método anticonceptivo:</label>
-                            <input type="text" name="metodoAnticonceptivo" value={datosMujer.metodoAnticonceptivo} onChange={handleChange} className="p-2 border rounded w-full"/>
-                        </div>
-                     )}
-                     {datosMujer.ciclosMenstruales === 'No' && (
-                         <div className="p-4 mt-2 border-l-4 border-indigo-500 bg-indigo-50 space-y-4 rounded-r-lg">
-                            <div className="flex flex-col"><label>¿Presenta histerectomía?</label><div className="flex space-x-2 mt-1">{['Sí', 'No'].map(o => <button key={o} type="button" onClick={() => handleButtonToggle('histerectomia', o)} className={`p-2 border rounded ${datosMujer.histerectomia === o ? 'bg-green-500 text-white' : ''}`}>{o}</button>)}</div></div>
-                            <div className="flex flex-col"><label>¿A qué edad presentó sintió sintomas relacionados a menopausia?:</label><input type="number" name="edadMenopausia" value={datosMujer.edadMenopausia} onChange={handleChange} className="p-2 border rounded"/></div>
-                        </div>
-                     )}
-                </div>
-
-                <h2 className="text-xl font-semibold border-b pb-2 pt-4">Datos Antropométricos y Clínicos</h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                     <div className="flex flex-col">
-                        <label>Peso (kg):</label>
-                        <input type="number" name="peso" value={datosMujer.peso} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                     <div className="flex flex-col">
-                        <label>Talla (cm):</label>
-                        <input type="number" name="talla" value={datosMujer.talla} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                     <div className="flex flex-col">
-                        <label>Cintura (cm):</label>
-                        <input type="number" name="cintura" value={datosMujer.cintura} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                </div>
-
-                {imc.valor && (
-                    <div className="p-3 bg-gray-100 rounded-md text-center">
-                        <p className="font-semibold">IMC: {imc.valor} - <span className="font-bold">{imc.clasificacion}</span></p>
-                    </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                        <label>Tensión Sistólica:</label>
-                        <input type="number" name="tensionSistolica" value={datosMujer.tensionSistolica} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                    <div className="flex flex-col">
-                        <label>Tensión Diastólica:</label>
-                        <input type="number" name="tensionDiastolica" value={datosMujer.tensionDiastolica} onChange={handleChange} className="mt-1 p-2 border rounded-md"/>
-                    </div>
-                </div>
-                 <div className="flex flex-col">
-                    <label className="text-sm font-medium">¿Conoce su nivel de colesterol?</label>
-                    <div className="flex space-x-2 mt-1">
-                        <button type="button" onClick={() => setNivelColesterolConocido(true)} className={`p-2 border rounded ${nivelColesterolConocido ? 'bg-indigo-500 text-white' : ''}`}>Sí</button>
-                        <button type="button" onClick={() => {setNivelColesterolConocido(false); setDatosMujer(p => ({...p, colesterol: 'No'}));}} className={`p-2 border rounded ${!nivelColesterolConocido ? 'bg-indigo-500 text-white' : ''}`}>No</button>
-                    </div>
-                     {nivelColesterolConocido && (
-                        <input type="number" name="colesterol" value={datosMujer.colesterol === 'No' ? '' : datosMujer.colesterol} onChange={handleChange} placeholder="Ingrese valor de colesterol total" className="mt-2 p-2 border rounded"/>
-                     )}
-                </div>
-
-                <button type="button" onClick={calcularRiesgo} className="w-full py-3 bg-blue-600 text-white font-bold rounded-md hover:bg-blue-700">
-                    Calcular Riesgo y Finalizar
-                </button>
-            </form>
-
-            {mostrarModal && !modalAdvertencia && (
-                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-2xl font-bold mb-4">Resumen del Paciente</h2>
                         
-                        <div className="space-y-2 text-gray-800">
-                           <p><strong>DNI:</strong> {datosMujer.dni}</p>
-                           <p><strong>Fecha de Nacimiento:</strong> {datosMujer.fechaNacimiento}</p>
-                           <p><strong>Teléfono:</strong> {datosMujer.telefono}</p>
-                           <p><strong>Edad:</strong> {datosMujer.edad}</p>
-                           <hr className="my-2"/>
-                           <p className="font-semibold">Salud Mamaria:</p>
-                           <p><strong>Familiar con Cáncer de Mama:</strong> {datosMujer.familiarCancerMama}</p>
-                           <p><strong>Punción de Mama:</strong> {datosMujer.puncionMama}</p>
-                           <p><strong>Mama Densa:</strong> {datosMujer.mamaDensa}</p>
-                           <hr className="my-2"/>
-                           <p className="font-semibold">Historial Cardiovascular:</p>
-                           <p><strong>Infarto Previo:</strong> {datosMujer.infarto}</p>
-                           <p><strong>ACV Previo:</strong> {datosMujer.acv}</p>
-                           <p><strong>Enfermedad Renal Crónica:</strong> {datosMujer.enfermedadRenal}</p>
-                           <hr className="my-2"/>
-                           <p><strong>Toma Medicación:</strong> {datosMujer.tomaMedicacionDiario} {datosMujer.tomaMedicacionDiario === 'Sí' ? `(${datosMujer.medicacionCondiciones.join(', ')})` : ''}</p>
-                           <p><strong>Fuma:</strong> {datosMujer.fumaDiario}</p>
-                           <p><strong>Actividad Física:</strong> {datosMujer.actividadFisica}</p>
-                           <p><strong>Sueño:</strong> {datosMujer.horasSueno}</p>
-                           <p><strong>Estrés Crónico:</strong> {datosMujer.estresCronico} {datosMujer.estresCronico === 'Sí' ? `(${datosMujer.estresTipo})` : ''}</p>
-                           <p><strong>Tumores Ginecológicos:</strong> {datosMujer.tumoresGinecologicos} {datosMujer.tumoresGinecologicos === 'Sí' ? `(${datosMujer.tumoresTipo.join(', ')})` : ''}</p>
-                           <p><strong>Enf. Autoinmunes:</strong> {datosMujer.enfermedadesAutoinmunes} {datosMujer.enfermedadesAutoinmunes === 'Sí' ? `(${datosMujer.autoinmunesTipo.join(', ')})` : ''}</p>
-                           <p><strong>HIV o Hepatitis B/C:</strong> {datosMujer.hivHepatitis}</p>
-                           <p><strong>Tuvo Hijos:</strong> {datosMujer.tuvoHijos}</p>
-                           <p><strong>Utilizó Rep. Asistida:</strong> {datosMujer.reproduccionAsistida}</p>
-                           <p><strong>Ciclos Menstruales:</strong> {datosMujer.ciclosMenstruales} {datosMujer.ciclosMenstruales === 'Sí' ? `(Anticonceptivo: ${datosMujer.metodoAnticonceptivo})` : `(Histerectomía: ${datosMujer.histerectomia}, Menopausia edad: ${datosMujer.edadMenopausia})`}</p>
-                           <hr className="my-2"/>
-                           <p><strong>Peso:</strong> {datosMujer.peso} kg | <strong>Talla:</strong> {datosMujer.talla} cm | <strong>Cintura:</strong> {datosMujer.cintura} cm</p>
-                           <p><strong>IMC:</strong> {imc.valor} ({imc.clasificacion})</p>
-                           <p><strong>Tensión Arterial:</strong> {datosMujer.tensionSistolica} / {datosMujer.tensionDiastolica} mmHg</p>
-                           <p><strong>Colesterol Total:</strong> {datosMujer.colesterol === 'No' ? 'No conoce' : datosMujer.colesterol}</p>
-                        </div>
-
-                        <div className="mt-6">
-                            <p className="font-semibold text-lg mb-2">Nivel de Riesgo Cardiovascular:</p>
-                            {renderRiesgoGrid(nivelRiesgo)}
+                        <div className="my-4 border-t pt-4">
+                            <h3 className="font-semibold text-gray-700 mb-2">Resumen</h3>
+                            <p><strong>IMC:</strong> {imc.valor} ({imc.clasificacion})</p>
+                            <p><strong>Edad:</strong> {datosMujer.edad} años</p>
                         </div>
 
                         <div className="mt-6 flex flex-col md:flex-row gap-3">
@@ -543,8 +626,7 @@ const Formulario = () => {
                 </div>
             )}
             
-            {mensajeExito && <div className="fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-md shadow-lg z-50">{mensajeExito}</div>}
-            
+            {/* Modal Advertencia */}
             {mostrarModal && modalAdvertencia && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-md shadow-lg w-11/12 max-w-lg">
@@ -554,6 +636,7 @@ const Formulario = () => {
                     </div>
                 </div>
             )}
+            
         </div>
     );
 };
