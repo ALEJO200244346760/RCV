@@ -3,7 +3,6 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { calcularRiesgoCardiovascular } from './Calculadora'; // Asumo que existe y se usa
 // import { obtenerColorRiesgo, obtenerTextoRiesgo } from './ConstFormulario'; // Asumo que existen
-import { ArrowLeftIcon } from './Icons'; // Asumo que tienes un archivo para iconos
 
 // --- AXIOS INSTANCE ---
 const axiosInstance = axios.create({
