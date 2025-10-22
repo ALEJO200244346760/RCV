@@ -680,7 +680,7 @@ const Formulario = () => {
                             {/* El botón de guardar solo aparece si el cálculo fue exitoso (hay nivel de riesgo) */}
                             {nivelRiesgo && (
                                 <button onClick={guardarPaciente} className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700">
-                                    Guardar Paciente
+                                    Entrega de informe
                                 </button>
                             )}
                             <button onClick={cerrarModal} className="w-full py-2 px-4 bg-gray-500 text-white rounded-md hover:bg-gray-600">
