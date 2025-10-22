@@ -145,13 +145,10 @@ const Formulario = () => {
     const [mostrarModal, setMostrarModal] = useState(false);
     const [modalAdvertencia, setModalAdvertencia] = useState(null);
 
-    // --- Lógica de Cálculo de Estado Derivado (SOLUCIÓN AL PROBLEMA) ---
-    
-    // 1. Cálculo de IMC (se ejecuta en cada render)
+    // --- Lógica de Cálculo de Estado Derivado ---
     const calcularIMC = (peso, tallaCm) => {
         const p = parseFloat(peso);
         const t = parseFloat(tallaCm);
-
         if (p > 0 && t > 0) {
             const tallaM = t / 100;
             const imcCalculado = p / (tallaM * tallaM);
@@ -166,10 +163,8 @@ const Formulario = () => {
         }
         return { valor: '', clasificacion: '' };
     };
-    
     const imc = calcularIMC(datosMujer.peso, datosMujer.talla);
 
-    // 2. Función para calcular la edad
     const calcularEdad = (fechaNacimiento) => {
         if (!fechaNacimiento) return '';
         const dob = new Date(fechaNacimiento);
@@ -182,17 +177,12 @@ const Formulario = () => {
         return age >= 0 ? age.toString() : '';
     };
 
-    // --- Manejadores de Estado Optimizados ---
+    // --- Manejadores de Estado ---
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
         if (name === 'fechaNacimiento') {
             const edadCalculada = calcularEdad(value);
-            setDatosMujer(prev => ({ 
-                ...prev, 
-                [name]: value,
-                edad: edadCalculada 
-            }));
+            setDatosMujer(prev => ({ ...prev, [name]: value, edad: edadCalculada }));
         } else {
             setDatosMujer(prev => ({ ...prev, [name]: value }));
         }
@@ -201,8 +191,7 @@ const Formulario = () => {
     const handleRadioToggle = (name, value) => {
         setDatosMujer(prev => {
             let newState = { ...prev, [name]: value };
-
-            if (value === 'No') {
+            if (value === 'No' || (value === 'Sí' && (name === 'horasSueno' || name === 'menstruacionUltima'))) {
                 switch (name) {
                     case 'infartoAcvTrombosis': newState.infartoAcvTrombosisTipo = []; break;
                     case 'enfermedadRenalInsuficiencia': newState.enfermedadRenalInsuficienciaTipo = []; break;
@@ -215,14 +204,9 @@ const Formulario = () => {
                     case 'tuvoHijos': newState.complicacionesEmbarazo = []; break;
                     case 'incontinenciaOrgasmos': newState.incontinenciaOrgasmosTipo = []; break;
                     case 'menstruacionUltima': newState.menopausiaTipo = []; break;
+                    case 'horasSueno': newState.horasSuenoProblema = []; break;
                     default: break;
                 }
-            } else if (value === 'Sí') {
-                 switch (name) {
-                    case 'horasSueno': newState.horasSuenoProblema = []; break;
-                    case 'menstruacionUltima': newState.menopausiaTipo = []; break;
-                    default: break;
-                 }
             }
             return newState;
         });
@@ -231,24 +215,24 @@ const Formulario = () => {
     const handleCheckboxChange = (field, value) => {
         setDatosMujer(prev => {
             const list = prev[field];
-            const newList = list.includes(value)
-                ? list.filter(item => item !== value)
-                : [...list, value];
+            const newList = list.includes(value) ? list.filter(item => item !== value) : [...list, value];
             return { ...prev, [field]: newList };
         });
     };
 
-    // --- Lógica de Envío (sin cambios) ---
+    // --- Lógica de Envío ---
     const validarCampos = () => {
         if (!datosMujer.dni || !datosMujer.fechaNacimiento || !datosMujer.tensionSistolica || !datosMujer.peso || !datosMujer.talla) {
-            setModalAdvertencia('Por favor, complete DNI, Fecha de Nacimiento, Peso, Talla y Tensión Sistólica (mínimo) para guardar y calcular el riesgo.');
+            setNivelRiesgo(null); // Limpiar riesgo si la validación falla
+            setModalAdvertencia('Por favor, complete DNI, Fecha de Nacimiento, Peso, Talla y Tensión Sistólica para calcular el riesgo.');
             setMostrarModal(true);
             return false;
         }
         const edadNum = parseInt(datosMujer.edad, 10);
         if (isNaN(edadNum) || edadNum < 1) {
-             setModalAdvertencia('La edad no es válida. Verifique la fecha de nacimiento.');
-             setMostrarModal(true);
+            setNivelRiesgo(null);
+            setModalAdvertencia('La edad no es válida. Verifique la fecha de nacimiento.');
+            setMostrarModal(true);
             return false;
         }
         return true;
@@ -269,14 +253,11 @@ const Formulario = () => {
     };
 
     const calcularRiesgo = () => {
-        if (!validarCampos()) {
-            return;
-        }
-
+        if (!validarCampos()) return;
+        
         const tieneRiesgoCritico = datosMujer.infartoAcvTrombosis === 'Sí' || datosMujer.enfermedadRenalInsuficiencia === 'Sí';
         if (tieneRiesgoCritico) {
-            const riesgo = '>30% <40% Muy Alto';
-            setNivelRiesgo(riesgo);
+            setNivelRiesgo('>30% <40% Muy Alto');
             setModalAdvertencia('Paciente con historial de infarto/ACV o enfermedad renal. Riesgo Cardiovascular es considerado <strong>Muy Alto</strong>.');
             setMostrarModal(true);
             return;
@@ -284,9 +265,9 @@ const Formulario = () => {
         
         const edadAjustada = ajustarEdad(parseInt(datosMujer.edad, 10));
         const presionArterial = ajustarPresionArterial(parseInt(datosMujer.tensionSistolica, 10));
-        const diabetes = datosMujer.medicacionCondiciones.includes('Diabetes') ? 'si' : 'no'; 
+        const diabetes = datosMujer.medicacionCondiciones.includes('Diabetes') ? 'si' : 'no';
         const fuma = datosMujer.fumaDiario === 'Sí' ? 'si' : 'no';
-        const colesterolParaCalculo = "No"; 
+        const colesterolParaCalculo = "No";
 
         const riesgoCalculado = calcularRiesgoCardiovascular(
             edadAjustada, 'femenino', diabetes, fuma, presionArterial, colesterolParaCalculo
@@ -297,15 +278,11 @@ const Formulario = () => {
     };
     
     const guardarPaciente = async () => {
+        // La validación se hace aquí de nuevo por si el usuario edita los datos después de calcular
+        if (!validarCampos()) return;
         try {
-            if (!validarCampos()) {
-                 setMostrarModal(false); 
-                 return;
-            }
-            
             let datosParaEnviar = { ...datosMujer };
-            const hoy = new Date();
-            datosParaEnviar.fechaRegistro = hoy.toISOString().split('T')[0];
+            datosParaEnviar.fechaRegistro = new Date().toISOString().split('T')[0];
 
             const camposArray = [
                 'infartoAcvTrombosisTipo', 'enfermedadRenalInsuficienciaTipo', 'medicacionCondiciones', 
@@ -313,17 +290,13 @@ const Formulario = () => {
                 'tumoresMamaTratamiento', 'puncionMamaMotivo', 'complicacionesEmbarazo', 
                 'menopausiaTipo', 'incontinenciaOrgasmosTipo'
             ];
-            
             camposArray.forEach(campo => {
                 if (Array.isArray(datosParaEnviar[campo])) {
                     datosParaEnviar[campo] = datosParaEnviar[campo].join(', ');
                 }
             });
-
             Object.keys(datosParaEnviar).forEach(key => {
-                if (datosParaEnviar[key] === null) {
-                    datosParaEnviar[key] = '';
-                }
+                if (datosParaEnviar[key] === null) datosParaEnviar[key] = '';
             });
 
             const payload = {
@@ -331,16 +304,13 @@ const Formulario = () => {
                 imc: `${imc.valor} (${imc.clasificacion})`,
                 nivelRiesgo: nivelRiesgo,
             };
-            
             delete payload.colesterol;
             
             await axiosInstance.post('/api/pacientes', payload);
             setMensajeExito('Paciente guardado con éxito');
             setMostrarModal(false);
             setTimeout(() => setMensajeExito(''), 3000);
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            setTimeout(() => window.location.reload(), 1000);
 
         } catch (error) {
             console.error('Error al guardar los datos:', error);
@@ -364,7 +334,8 @@ const Formulario = () => {
                 {mensajeExito && <div className="fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-md shadow-lg z-50">{mensajeExito}</div>}
                 
                 <form className="w-full space-y-10" onSubmit={(e) => { e.preventDefault(); calcularRiesgo(); }}>
-
+                    {/* SECCIONES DEL FORMULARIO (1, 2, 3, 4) VAN AQUÍ... */}
+                    {/* Por brevedad, se omite el JSX repetitivo del formulario que ya está correcto. */}
                     {/* --- SECCIÓN 1: HISTORIAL Y HÁBITOS --- */}
                     <div className="space-y-6 p-4 border border-indigo-200 rounded-lg bg-indigo-50">
                         <h2 className="text-xl font-bold text-indigo-800 border-b pb-1">1. Historial y Hábitos</h2>
@@ -489,7 +460,7 @@ const Formulario = () => {
                         </div>
                     </div>
 
-                    {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO (AHORA COMPLETA) --- */}
+                    {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO --- */}
                     <div className="space-y-6 p-4 border border-pink-300 rounded-lg bg-pink-100">
                         <h2 className="text-xl font-bold text-pink-800 border-b pb-1">2. Historial Ginecológico</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -651,86 +622,74 @@ const Formulario = () => {
                             <InputField label="MAIL" name="mail" type="email" placeholder="Correo electrónico" value={datosMujer.mail} onChange={handleChange}/>
                         </div>
                     </div>
-                    
+
                     {/* --- BOTONES DE ACCIÓN --- */}
                     <div className="mt-8 flex justify-end space-x-4">
-                        <button 
-                            type="submit"
-                            className="px-6 py-3 border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition"
-                        >
-                            Calcular Riesgo (Paso 1)
+                        <button type="submit" className="px-6 py-3 border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                            Calcular Riesgo
                         </button>
                     </div>
                 </form>
-
             </div>
             
-            {/* --- MODAL DE RIESGO Y GUARDADO --- */}
-            {mostrarModal && nivelRiesgo && !modalAdvertencia && (
+            {/* --- MODAL UNIFICADO (CORREGIDO) --- */}
+            {mostrarModal && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
                     <div className="bg-white p-6 rounded-md shadow-2xl w-full max-w-lg">
-                        <h2 className="text-2xl font-bold mb-4 text-indigo-700">Resultado del Cálculo de Riesgo</h2>
-                        <div className={`p-4 rounded-lg text-center ${obtenerColorRiesgo(nivelRiesgo)}`}>
-                            <h3 className="text-xl font-bold">Riesgo Calculado: {nivelRiesgo}</h3>
-                            <p className="text-sm mt-1">{obtenerTextoRiesgo(nivelRiesgo)}</p>
-                        </div>
-                        
-                        <div className="my-4 border-t pt-4 text-sm text-gray-800">
-                            <h3 className="font-semibold text-gray-900 mb-2 text-base">Resumen del Paciente</h3>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                {/* Datos Clínicos y Antropométricos */}
-                                <p><strong>DNI:</strong> {datosMujer.dni}</p>
-                                <p><strong>Edad:</strong> {datosMujer.edad} años</p>
-                                <p><strong>IMC:</strong> {imc.valor ? `${imc.valor} (${imc.clasificacion})` : 'No calculado'}</p>
-                                <p><strong>Presión Arterial:</strong> {datosMujer.tensionSistolica}/{datosMujer.tensionDiastolica} mmHg</p>
-                                
-                                {/* Antecedentes de Riesgo Alto */}
-                                {datosMujer.infartoAcvTrombosis === 'Sí' && (
-                                    <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Infarto/ACV/Trombosis</p>
-                                )}
-                                {datosMujer.enfermedadRenalInsuficiencia === 'Sí' && (
-                                    <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Enf. Renal / Insuf. Cardíaca</p>
-                                )}
+                        <h2 className="text-2xl font-bold mb-4 text-indigo-700">Resultado del Cálculo</h2>
 
-                                {/* Factores de Riesgo Principales */}
-                                <p><strong>Diabetes:</strong> {datosMujer.medicacionCondiciones.includes('Diabetes') ? 'Sí' : 'No'}</p>
-                                <p><strong>Hipertensión:</strong> {datosMujer.medicacionCondiciones.includes('Hipertensión arterial') ? 'Sí' : 'No'}</p>
-                                <p><strong>Fuma:</strong> {datosMujer.fumaDiario || 'No'}</p>
-                                <p><strong>Alcohol (Riesgo):</strong> {datosMujer.consumoAlcoholRiesgo || 'No'}</p>
-
-                                {/* Otros Datos Relevantes */}
-                                {datosMujer.enfermedadesAutoinmunes === 'Sí' && (
-                                    <p><strong>Enf. Autoinmune:</strong> {datosMujer.autoinmunesTipo.join(', ') || 'Sí'}</p>
-                                )}
-                                {datosMujer.complicacionesEmbarazo.length > 0 && (
-                                    <p className="col-span-2"><strong>Compl. Embarazo:</strong> {datosMujer.complicacionesEmbarazo.join(', ')}</p>
-                                )}
+                        {/* Bloque de Advertencia (se muestra solo si hay un mensaje) */}
+                        {modalAdvertencia && (
+                            <div className="bg-red-50 border border-red-300 text-red-800 p-3 rounded-md mb-4">
+                                <h3 className="font-bold">Aviso Importante</h3>
+                                <p dangerouslySetInnerHTML={{ __html: modalAdvertencia }}></p>
                             </div>
-                        </div>
+                        )}
 
+                        {/* Bloque de Riesgo (se muestra solo si se calculó un riesgo) */}
+                        {nivelRiesgo && (
+                             <div className={`p-4 rounded-lg text-center mb-4 ${obtenerColorRiesgo(nivelRiesgo)}`}>
+                                <h3 className="text-xl font-bold">Riesgo Calculado: {nivelRiesgo}</h3>
+                                <p className="text-sm mt-1">{obtenerTextoRiesgo(nivelRiesgo)}</p>
+                            </div>
+                        )}
+
+                        {/* Resumen del Paciente (se muestra si no es una simple advertencia de validación) */}
+                        {nivelRiesgo && (
+                            <div className="my-4 border-t pt-4 text-sm text-gray-800">
+                                <h3 className="font-semibold text-gray-900 mb-2 text-base">Resumen del Paciente</h3>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                    <p><strong>DNI:</strong> {datosMujer.dni}</p>
+                                    <p><strong>Edad:</strong> {datosMujer.edad} años</p>
+                                    <p><strong>IMC:</strong> {imc.valor ? `${imc.valor} (${imc.clasificacion})` : 'No calculado'}</p>
+                                    <p><strong>Presión Arterial:</strong> {datosMujer.tensionSistolica}/{datosMujer.tensionDiastolica} mmHg</p>
+                                    {datosMujer.infartoAcvTrombosis === 'Sí' && <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Infarto/ACV/Trombosis</p>}
+                                    {datosMujer.enfermedadRenalInsuficiencia === 'Sí' && <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Enf. Renal / Insuf. Cardíaca</p>}
+                                    <p><strong>Diabetes:</strong> {datosMujer.medicacionCondiciones.includes('Diabetes') ? 'Sí' : 'No'}</p>
+                                    <p><strong>Hipertensión:</strong> {datosMujer.medicacionCondiciones.includes('Hipertensión arterial') ? 'Sí' : 'No'}</p>
+                                    <p><strong>Fuma:</strong> {datosMujer.fumaDiario || 'No'}</p>
+                                    <p><strong>Alcohol (Riesgo):</strong> {datosMujer.consumoAlcoholRiesgo || 'No'}</p>
+                                    {datosMujer.enfermedadesAutoinmunes === 'Sí' && <p><strong>Enf. Autoinmune:</strong> {datosMujer.autoinmunesTipo.join(', ') || 'Sí'}</p>}
+                                    {datosMujer.complicacionesEmbarazo.length > 0 && <p className="col-span-2"><strong>Compl. Embarazo:</strong> {datosMujer.complicacionesEmbarazo.join(', ')}</p>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Botones de Acción */}
                         <div className="mt-6 flex flex-col md:flex-row gap-3">
-                            <button onClick={guardarPaciente} className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700">
-                                Guardar Paciente
-                            </button>
+                            {/* El botón de guardar solo aparece si el cálculo fue exitoso (hay nivel de riesgo) */}
+                            {nivelRiesgo && (
+                                <button onClick={guardarPaciente} className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                    Guardar Paciente
+                                </button>
+                            )}
                             <button onClick={cerrarModal} className="w-full py-2 px-4 bg-gray-500 text-white rounded-md hover:bg-gray-600">
-                                Cerrar
+                                {nivelRiesgo ? 'Cerrar' : 'Entendido'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            
-            {/* Modal Advertencia */}
-            {mostrarModal && modalAdvertencia && (
-                <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-md shadow-lg w-11/12 max-w-lg">
-                        <h2 className="text-lg font-semibold mb-4 text-red-600">Aviso</h2>
-                        <p dangerouslySetInnerHTML={{ __html: modalAdvertencia }}></p>
-                        <button onClick={cerrarModal} className="mt-4 py-2 px-4 bg-gray-500 text-white rounded-md w-full">Entendido</button>
-                    </div>
-                </div>
-            )}
-            
         </div>
     );
 };
