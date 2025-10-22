@@ -5,7 +5,7 @@ import EstadisticasGraficos from './EstadisticasGraficos';
 
 // --- AXIOS INSTANCE ---
 const axiosInstance = axios.create({
-    baseURL: 'https://rcv-1-production.up.railway.app', 
+    baseURL: 'https://rcv-production.up.railway.app', 
 });
 
 const apiBaseURL = '/api/pacientes'; 
