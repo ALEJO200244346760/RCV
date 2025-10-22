@@ -1,19 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import EstadisticasGraficos from './EstadisticasGraficos'; 
-// Importar funciones de ConstFormulario si existieran,
-// de lo contrario, uso la definición local para evitar errores.
-// import { obtenerColorRiesgo } from './ConstFormulario'; 
+// Importa tu componente de gráficos si lo tienes
+// import EstadisticasGraficos from './EstadisticasGraficos'; 
+import { EyeIcon, PencilIcon, TrashIcon } from './Icons'; // Asumo que tienes un archivo para iconos
+import { filter } from 'lodash';
 
 // --- AXIOS INSTANCE ---
+// Ajusta la URL base si es necesario
 const axiosInstance = axios.create({
     baseURL: 'https://rcv-production.up.railway.app', 
 });
 
 const apiBaseURL = '/api/pacientes'; 
 
-// --- FUNCIÓN HELPER PARA COLOR DE RIESGO (más robusta que el stub) ---
+// --- FUNCIÓN HELPER PARA COLOR DE RIESGO (Reutilizada del archivo original) ---
 const obtenerColorRiesgo = (nivelRiesgo) => {
     if (!nivelRiesgo) return 'bg-gray-200 text-gray-800';
     const riesgoNormalizado = nivelRiesgo.toLowerCase();
@@ -25,346 +26,383 @@ const obtenerColorRiesgo = (nivelRiesgo) => {
     return 'bg-gray-200 text-gray-800';
 };
 
-// --- COMPONENTES DE ICONOS ---
-const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-</svg>;
 
-const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-</svg>;
+// --- LISTA DE FILTROS ACTUALIZADA ---
+const initialFiltros = {
+    dni: '',
+    edad: '',
+    nivelRiesgo: '',
+    fumaDiario: '',
+    actividadFisica: '',
+    consumoAlcoholRiesgo: '',
+    tomaMedicacionDiario: '',
+    infartoAcvTrombosis: '', // Nuevo
+    enfermedadRenalInsuficiencia: '', // Nuevo
+    enfermedadesAutoinmunes: '', // Nuevo
+    hivHepatitis: '', // Nuevo
+    
+    // Ginecológicos
+    tumoresMama: '', // Nuevo
+    familiarCancerMama: '', // Nuevo
+    puncionMama: '', // Nuevo
+    mamaDensa: '', // Nuevo
+    tuvoHijos: '', // Nuevo
+    reproduccionAsistida: '', // Nuevo
+    menstruacionUltima: '', // Nuevo
+};
 
-const CopyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v4a2 2 0 002 2h4a2 2 0 002-2V7m-4 6v-4m0 0V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v14a2 2 0 002 2h4a2 2 0 002-2v-2" />
-</svg>;
 
+// --- COMPONENTE TARJETA DE PACIENTE ---
+const PacienteCard = ({ paciente, onEdit, onDelete }) => {
+    const { 
+        dni, id, fechaRegistro, edad, imc, nivelRiesgo, peso, talla, cintura,
+        tensionSistolica, tensionDiastolica, telefono, mail, fechaNacimiento,
+        // Historial y Hábitos
+        infartoAcvTrombosis, infartoAcvTrombosisTipo, enfermedadRenalInsuficiencia, enfermedadRenalInsuficienciaTipo,
+        tomaMedicacionDiario, medicacionCondiciones, fumaDiario, fumaTipo, consumoAlcoholRiesgo, 
+        actividadFisica, horasSueno, horasSuenoProblema, estresAngustiaCronica, estresTipo, 
+        enfermedadesAutoinmunes, autoinmunesTipo, hivHepatitis,
+        // Historial Ginecológico
+        tumoresMama, tumoresMamaTratamiento, familiarCancerMama, puncionMama, puncionMamaMotivo,
+        mamaDensa, tuvoHijos, complicacionesEmbarazo, reproduccionAsistida, abortosSindromeAntifosfolipidico,
+        menstruacionEdadRiesgo, menstruacionUltima, menopausiaTipo, incontinenciaOrgasmos, incontinenciaOrgasmosTipo,
+    } = paciente;
 
-// Componente PacienteCard
-const PacienteCard = React.memo(({ paciente: p, onDelete, onEdit, onCopy }) => {
-    const formatTypes = (data) => {
-        if (!data) return '';
-        if (Array.isArray(data)) return data.join(', ');
-        try {
-            // Manejar si viene como string JSON
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed)) return parsed.join(', ');
-            return data;
-        } catch {
-            return data;
-        }
+    const tieneComplicaciones = (complicaciones) => {
+        return complicaciones ? complicaciones.split(', ').filter(c => c).join(', ') : 'Ninguna';
     };
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:shadow-xl transition duration-300">
-            {/* Encabezado y Riesgo */}
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-bold text-gray-800">Paciente ID: {p.id}</h3>
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${obtenerColorRiesgo(p.nivelRiesgo)}`}>
-                    Riesgo: {p.nivelRiesgo}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-shadow p-6 relative">
+            <div className="flex justify-between items-start border-b pb-2 mb-3">
+                <h3 className="text-xl font-bold text-gray-900">Paciente DNI: {dni}</h3>
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${obtenerColorRiesgo(nivelRiesgo)}`}>
+                    {nivelRiesgo || 'N/D'}
                 </span>
             </div>
 
-            <p className="text-sm text-gray-500 mb-4">
-                <span className="font-medium text-gray-700">DNI:</span> {p.dni} |
-                <span className="font-medium text-gray-700"> Edad:</span> {p.edad} |
-                <span className="font-medium text-gray-700"> Tel:</span> {p.telefono}
-            </p>
+            <p className="text-sm text-gray-600 mb-4">Registro: {fechaRegistro} | Edad: {edad} años</p>
 
-            <div className="text-sm text-gray-700 space-y-1">
-                <p><strong>Género:</strong> {p.genero}</p>
-                <p><strong>Ubicación:</strong> {p.ubicacion}</p>
-                <hr className="my-2"/>
-                
-                {/* Nuevos campos de eventos previos */}
-                <p className="font-semibold text-sm text-gray-600">Eventos Previos:</p>
-                <p><strong>Infarto:</strong> {p.infarto || 'No especificado'}</p>
-                <p><strong>ACV:</strong> {p.acv || 'No especificado'}</p>
-                <p><strong>Enf. Renal Crónica:</strong> {p.enfermedadRenal || 'No especificado'}</p>
-                
-                <hr className="my-2"/>
-                <p className="font-semibold text-sm text-gray-600">Mediciones y Riesgo:</p>
-                <p><strong>Tensión Arterial:</strong> {p.tensionSistolica}/{p.tensionDiastolica}</p>
-                <p><strong>Colesterol:</strong> {p.colesterol}</p>
-                <p><strong>IMC:</strong> {p.imc}</p>
-                <p><strong>Cintura:</strong> {p.cintura} cm</p>
-                
-                {/* --- Datos Femeninos (solo si es femenino) --- */}
-                {p.genero === 'femenino' && (
-                    <>
-                        <hr className="my-2"/>
-                        <p className="font-semibold text-sm text-gray-600">Salud Femenina y Mamaria:</p>
-                        
-                        <p><strong>Familiar Cáncer Mama:</strong> {p.familiarCancerMama}</p>
-                        <p><strong>Punción de Mama:</strong> {p.puncionMama}</p>
-                        <p><strong>Mama Densa:</strong> {p.mamaDensa}</p>
-                        <p><strong>HIV o Hepatitis B/C:</strong> {p.hivHepatitis || 'No especificado'}</p>
-                        <p><strong>Rep. Asistida:</strong> {p.reproduccionAsistida || 'No especificado'}</p>
-
-                        <div>
-                            <strong>Tumores ginecológicos:</strong> {p.tumoresGinecologicos}{' '}
-                            {(p.tumoresTipo && p.tumoresTipo.length > 0)
-                                ? `(${formatTypes(p.tumoresTipo)})`
-                                : ''}
-                        </div>
-
-                        <div>
-                            <strong>Enf. autoinmunes:</strong> {p.enfermedadesAutoinmunes}{' '}
-                            {(p.autoinmunesTipo && p.autoinmunesTipo.length > 0)
-                                ? `(${formatTypes(p.autoinmunesTipo)})`
-                                : ''}
-                        </div>
-
-                        <div><strong>Tuvo hijos:</strong> {p.tuvoHijos}
-                            {p.tuvoHijos === 'Sí' ? ` (${p.cantidadHijos} hijos, Complicaciones: ${p.complicacionesEmbarazo || 'No especificado'})` : ` (${p.motivoNoHijos || 'No especificado'})`}
-                        </div>
-                        <div><strong>Ciclos menstruales:</strong> {p.ciclosMenstruales}</div>
-                        <div><strong>Histerectomía:</strong> {p.histerectomia}</div>
-                        <div><strong>Menopausia:</strong> {p.menopausia}
-                            {p.menopausia === 'Sí' ? ` (Edad: ${p.edadMenopausia})` : ''}
-                        </div>
-                    </>
-                )}
-            </div>
-            
-            {/* Botones de Acción */}
-            <div className="mt-6 flex gap-3">
-                <button 
-                    onClick={() => onEdit(p.id)} // CORRECCIÓN 1: Pasa el ID al handler
-                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 text-sm font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                >
-                    <EditIcon /> Editar
+            {/* Acciones */}
+            <div className="absolute top-4 right-4 flex space-x-2">
+                <button onClick={() => onEdit(id)} title="Editar" className="text-indigo-600 hover:text-indigo-800 p-1 rounded-full hover:bg-indigo-50 transition">
+                    <PencilIcon className="h-5 w-5" />
                 </button>
-                <button 
-                    onClick={() => onCopy(p)} 
-                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 text-sm font-medium bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition"
-                >
-                    <CopyIcon /> Copiar Data
-                </button>
-                <button 
-                    onClick={() => onDelete(p.id)} 
-                    className="flex-1 flex items-center justify-center gap-1 px-4 py-2 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                >
-                    <TrashIcon /> Eliminar
+                <button onClick={() => onDelete(id)} title="Eliminar" className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition">
+                    <TrashIcon className="h-5 w-5" />
                 </button>
             </div>
-        </div>
-    );
-});
 
+            <div className="space-y-3 text-sm">
+                
+                <h4 className="font-bold text-indigo-700">Riesgo y Mediciones:</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div><strong>IMC:</strong> {imc}</div>
+                    <div><strong>Peso/Talla/Cintura:</strong> {peso}kg / {talla}cm / {cintura}cm</div>
+                    <div><strong>Tensión (S/D):</strong> {tensionSistolica}/{tensionDiastolica} mmHg</div>
+                </div>
+                
+                <h4 className="font-bold text-indigo-700 mt-2">Historial y Hábitos:</h4>
+                <div className="grid grid-cols-1 gap-y-1">
+                    <div>
+                        <strong>Infarto/ACV/Trombosis:</strong> {infartoAcvTrombosis} 
+                        {infartoAcvTrombosis === 'Sí' && ` (${tieneComplicaciones(infartoAcvTrombosisTipo)})`}
+                    </div>
+                    <div>
+                        <strong>Enfermedad Renal/IC:</strong> {enfermedadRenalInsuficiencia} 
+                        {enfermedadRenalInsuficiencia === 'Sí' && ` (${tieneComplicaciones(enfermedadRenalInsuficienciaTipo)})`}
+                    </div>
+                    <div>
+                        <strong>Medicación diaria:</strong> {tomaMedicacionDiario} 
+                        {tomaMedicacionDiario === 'Sí' && ` (${tieneComplicaciones(medicacionCondiciones)})`}
+                    </div>
+                    <div>
+                        <strong>Fuma:</strong> {fumaDiario} {fumaDiario === 'Sí' && ` (${tieneComplicaciones(fumaTipo)})`}
+                    </div>
+                    <div><strong>Alcohol riesgo:</strong> {consumoAlcoholRiesgo}</div>
+                    <div><strong>Act. Física / Sueño:</strong> {actividadFisica} / {horasSueno}</div>
+                    <div>
+                        <strong>Estrés Crónico:</strong> {estresAngustiaCronica} 
+                        {estresAngustiaCronica === 'Sí' && ` (${tieneComplicaciones(estresTipo)})`}
+                    </div>
+                    <div>
+                        <strong>Autoinmunes:</strong> {enfermedadesAutoinmunes} 
+                        {enfermedadesAutoinmunes === 'Sí' && ` (${tieneComplicaciones(autoinmunesTipo)})`}
+                    </div>
+                    <div><strong>HIV/Hepatitis B/C:</strong> {hivHepatitis}</div>
+                </div>
 
-function Estadisticas() {
-  // CORRECCIÓN 1: useNavigate DEBE estar dentro del componente funcional
-  const navigate = useNavigate();
-
-  const [pacientes, setPacientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [mostrarGraficos, setMostrarGraficos] = useState(false);
-  const [mostrarFiltros, setMostrarFiltros] = useState(false); 
-  const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
-  const [pacienteAEliminar, setPacienteAEliminar] = useState(null); 
-  const [mensajeNotificacion, setMensajeNotificacion] = useState(null); 
-
-  const [filtros, setFiltros] = useState({
-    // Nuevos y existentes para un filtro completo
-    edad: '',
-    imc: '',
-    nivelColesterol: '',
-    tensionSistolica: '',
-    fumador: '',
-    tomaMedicacion: '',
-    nivelRiesgo: '',
-    // Eventos Previos
-    infarto: '',
-    acv: '',
-    enfermedadRenal: '',
-    // Hábitos
-    actividadFisica: '',
-    horasSueno: '',
-    estresCronico: '',
-    // Salud Femenina / Mamaria
-    tumoresGinecologicos: '',
-    enfermedadesAutoinmunes: '',
-    hivHepatitis: '', // CAMPO SOLICITADO
-    tuvoHijos: '',
-    reproduccionAsistida: '', // CAMPO AGREGADO
-    familiarCancerMama: '', 
-    puncionMama: '',
-    mamaDensa: '',
-  });
-
-  const handleDelete = (id) => {
-    setPacienteAEliminar(id);
-    setMostrarModalConfirmacion(true);
-  };
-  
-  const handleEdit = (id) => {
-    if (id) {
-        // CORRECCIÓN 1: Se asegura que el ID se pasa y navega correctamente
-        navigate(`/editar-paciente/${id}`); 
-    } else {
-        setMensajeNotificacion({ tipo: 'error', texto: 'Error: ID de paciente no definido.' });
-        setTimeout(() => setMensajeNotificacion(null), 4000);
-    }
-  };
-  
-  // CORRECCIÓN 3: Formato de "Copiar" mejorado con etiquetas legibles.
-  const handleCopy = (paciente) => {
-    const labelMap = {
-      id: 'ID Paciente', dni: 'DNI', fechaNacimiento: 'Fecha de Nacimiento', telefono: 'Teléfono', edad: 'Edad', genero: 'Género', ubicacion: 'Ubicación',
-      // Riesgo y Mediciones
-      tensionSistolica: 'Tensión Sistólica', tensionDiastolica: 'Tensión Diastólica', colesterol: 'Colesterol Total', nivelRiesgo: 'Nivel de Riesgo', imc: 'IMC',
-      peso: 'Peso (kg)', talla: 'Talla (cm)', cintura: 'Cintura (cm)',
-      // Hábitos y Condiciones
-      tomaMedicacionDiario: 'Toma Medicación Diaria', medicacionCondiciones: 'Condiciones Médicas', fumaDiario: 'Fuma Diario',
-      infarto: 'Infarto Previo', acv: 'ACV Previo', enfermedadRenal: 'Enfermedad Renal Crónica',
-      actividadFisica: 'Actividad Física', horasSueno: 'Horas de Sueño', estresCronico: 'Estrés Crónico', estresTipo: 'Tipo de Estrés',
-      // Salud Femenina
-      familiarCancerMama: 'Familiar con Cáncer de Mama', puncionMama: 'Punción de Mama', mamaDensa: 'Mama Densa',
-      tumoresGinecologicos: 'Tumores Ginecológicos', tumoresTipo: 'Tipos de Tumores', 
-      enfermedadesAutoinmunes: 'Enfermedades Autoinmunes', autoinmunesTipo: 'Tipos de Enf. Autoinmunes', 
-      hivHepatitis: 'Presenta HIV o Hepatitis B/C',
-      tuvoHijos: 'Tuvo Hijos', reproduccionAsistida: 'Usó Reproducción Asistida', cantidadHijos: 'Cantidad de Hijos',
-      complicacionesEmbarazo: 'Complicaciones en Embarazo', motivoNoHijos: 'Motivo No Hijos',
-      ciclosMenstruales: 'Ciclos Menstruales', metodoAnticonceptivo: 'Método Anticonceptivo', histerectomia: 'Histerectomía',
-      menopausia: 'Menopausia', edadMenopausia: 'Edad de Menopausia', fechaRegistro: 'Fecha de Registro'
-    };
-
-    const dataToCopy = Object.entries(paciente)
-        .map(([key, value]) => {
-            const label = labelMap[key] || key;
-            const finalValue = (value === null || value === '' || value === undefined) 
-                                ? 'No especificado' 
-                                : Array.isArray(value) ? value.join(', ') : value;
-            return `${label}: ${finalValue}`;
-        })
-        .join(' ');
-
-    navigator.clipboard.writeText(dataToCopy)
-        .then(() => setMensajeNotificacion({ tipo: 'success', texto: `Datos del paciente ID ${paciente.id} copiados.` }))
-        .catch(() => setMensajeNotificacion({ tipo: 'error', texto: 'Error al copiar datos.' }))
-        .finally(() => setTimeout(() => setMensajeNotificacion(null), 4000));
-  };
-
-  const confirmarEliminacion = async () => {
-    if (!pacienteAEliminar) return;
-
-    setMostrarModalConfirmacion(false);
-
-    try {
-        await axiosInstance.delete(`${apiBaseURL}/${pacienteAEliminar}`);
-        setPacientes(prev => prev.filter(p => p.id !== pacienteAEliminar));
-        setMensajeNotificacion({ tipo: 'success', texto: `Paciente ${pacienteAEliminar} eliminado.` });
-    } catch (err) {
-        setMensajeNotificacion({ tipo: 'error', texto: 'Error al eliminar paciente.' });
-    } finally {
-        setPacienteAEliminar(null);
-        setTimeout(() => setMensajeNotificacion(null), 4000); 
-    }
-  };
-
-  const cancelarEliminacion = () => {
-    setMostrarModalConfirmacion(false);
-    setPacienteAEliminar(null);
-  };
-
-  useEffect(() => {
-    axiosInstance.get(apiBaseURL)
-      .then(resp => setPacientes(resp.data))
-      .catch(err => console.error("Error al cargar pacientes:", err))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleFiltroChange = (e) => {
-    setFiltros(prev => ({...prev, [e.target.name]: e.target.value}));
-  };
-
-  const limpiarFiltros = () => {
-    setFiltros(Object.fromEntries(Object.keys(filtros).map(key => [key, ''])));
-  };
-
-  const pacientesFiltrados = useMemo(() => {
-    let filtrados = pacientes.filter(p => {
-      for (const key in filtros) {
-        if (filtros[key]) {
-          const filtroValor = String(filtros[key]).toLowerCase();
-          const pacienteValor = String(p[key] || '').toLowerCase();
-          if (!pacienteValor.includes(filtroValor)) {
-            return false;
-          }
-        }
-      }
-      return true;
-    });
-
-    // CORRECCIÓN 2: Ordenar por ID descendente para mostrar los más nuevos primero.
-    return filtrados.sort((a, b) => b.id - a.id);
-  }, [pacientes, filtros]);
-
-  if (loading) return <div className="p-8 text-center text-xl">Cargando...</div>;
-
-  return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-extrabold text-gray-900 mb-8">Gestión de Pacientes</h1>
-
-      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-          <h2 className="text-2xl font-bold text-gray-800">Resultados ({pacientesFiltrados.length} pacientes)</h2>
-          <div className="flex gap-4">
-            <button onClick={() => setMostrarFiltros(!mostrarFiltros)} className={`px-4 py-2 text-sm font-medium rounded-lg shadow-md transition ${mostrarFiltros ? 'bg-gray-500 text-white hover:bg-gray-600' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}>{mostrarFiltros ? 'Ocultar Filtros' : 'Mostrar Filtros'}</button>
-            <button onClick={() => setMostrarGraficos(!mostrarGraficos)} className={`px-4 py-2 text-sm font-medium rounded-lg shadow-md transition ${mostrarGraficos ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>{mostrarGraficos ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}</button>
-          </div>
-      </div>
-
-      {mostrarFiltros && (
-        <div className="p-6 bg-white rounded-xl shadow-lg mb-8">
-          <h2 className="text-xl font-bold text-gray-700 mb-4">Filtros</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <input type="number" name="edad" placeholder="Edad Mín." value={filtros.edad} onChange={handleFiltroChange} className="p-2 border rounded-lg"/>
-            <input type="text" name="imc" placeholder="Clasif. IMC" value={filtros.imc} onChange={handleFiltroChange} className="p-2 border rounded-lg"/>
-            <select name="nivelRiesgo" value={filtros.nivelRiesgo} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Riesgo (Todos)</option><option value="Bajo">Bajo</option><option value="Moderado">Moderado</option><option value="Alto">Alto</option><option value="Muy Alto">Muy Alto</option><option value="Crítico">Crítico</option></select>
-            <select name="fumador" value={filtros.fumador} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Fuma (Todos)</option><option value="Sí">Sí</option><option value="No">No</option><option value="Ex">Ex-Fumador</option></select>
-            <select name="infarto" value={filtros.infarto} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Infarto</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="acv" value={filtros.acv} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">ACV</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="enfermedadRenal" value={filtros.enfermedadRenal} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Enf. Renal</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="hivHepatitis" value={filtros.hivHepatitis} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">HIV/Hepatitis</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="reproduccionAsistida" value={filtros.reproduccionAsistida} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Rep. Asistida</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="familiarCancerMama" value={filtros.familiarCancerMama} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Fam. Cáncer Mama</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="mamaDensa" value={filtros.mamaDensa} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Mama Densa</option><option value="Sí">Sí</option><option value="No">No</option></select>
-            <select name="tuvoHijos" value={filtros.tuvoHijos} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Tuvo Hijos</option><option value="Sí">Sí</option><option value="No">No</option></select>
-          </div>
-          <div className="mt-4 flex justify-end"><button onClick={limpiarFiltros} className="px-4 py-2 text-sm font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600">Limpiar Filtros</button></div>
-        </div>
-      )}
-
-      {mostrarGraficos && <div className="mb-8 p-6 bg-white rounded-xl shadow-lg"><EstadisticasGraficos pacientes={pacientesFiltrados} /></div>}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {pacientesFiltrados.length > 0 ? (
-          pacientesFiltrados.map(p => <PacienteCard key={p.id} paciente={p} onEdit={handleEdit} onCopy={handleCopy} onDelete={handleDelete} />)
-        ) : (
-          <p className="col-span-full text-center text-gray-500 p-4 bg-white rounded-lg">No se encontraron pacientes.</p>
-        )}
-      </div>
-
-      {mostrarModalConfirmacion && (
-        <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
-                <h3 className="text-xl font-bold text-red-600 mb-4">Confirmar Eliminación</h3>
-                <p className="text-gray-700 mb-6">¿Seguro que deseas eliminar al paciente ID <span className="font-semibold">{pacienteAEliminar}</span>?</p>
-                <div className="flex justify-end gap-3">
-                    <button onClick={cancelarEliminacion} className="px-4 py-2 text-sm font-medium bg-gray-300 rounded-lg hover:bg-gray-400">Cancelar</button>
-                    <button onClick={confirmarEliminacion} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700">Confirmar</button>
+                <h4 className="font-bold text-pink-700 mt-2">Salud Femenina:</h4>
+                <div className="grid grid-cols-1 gap-y-1">
+                    <div>
+                        <strong>Tumores Mama:</strong> {tumoresMama} 
+                        {tumoresMama === 'Sí' && ` (Tratamiento: ${tieneComplicaciones(tumoresMamaTratamiento)})`}
+                    </div>
+                    <div><strong>Familiar Cáncer Mama:</strong> {familiarCancerMama}</div>
+                    <div><strong>Punción Mama:</strong> {puncionMama}</div>
+                    <div><strong>Mama Densa:</strong> {mamaDensa}</div>
+                    <div>
+                        <strong>Tuvo Hijos:</strong> {tuvoHijos} 
+                        {tuvoHijos === 'Sí' && ` (Complicaciones: ${tieneComplicaciones(complicacionesEmbarazo)})`}
+                    </div>
+                    <div><strong>Repr. Asistida:</strong> {reproduccionAsistida}</div>
+                    <div><strong>Abortos/SAF:</strong> {abortosSindromeAntifosfolipidico}</div>
+                    <div><strong>Menstruación Úlima:</strong> {menstruacionUltima} {menstruacionUltima && ` (${tieneComplicaciones(menopausiaTipo)})`}</div>
+                    <div>
+                        <strong>Incontinencia/Orgasmos:</strong> {incontinenciaOrgasmos} 
+                        {incontinenciaOrgasmos === 'Sí' && ` (${tieneComplicaciones(incontinenciaOrgasmosTipo)})`}
+                    </div>
                 </div>
             </div>
         </div>
-      )}
+    );
+};
 
-      {mensajeNotificacion && (
-        <div className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-xl z-50 ${mensajeNotificacion.tipo === 'success' ? 'bg-green-500' : mensajeNotificacion.tipo === 'error' ? 'bg-red-500' : 'bg-blue-500'} text-white`}>
-            {mensajeNotificacion.texto}
+
+// --- COMPONENTE PRINCIPAL ---
+function Estadisticas() {
+    const navigate = useNavigate();
+    const [pacientes, setPacientes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filtros, setFiltros] = useState(initialFiltros);
+    const [pacienteAEliminar, setPacienteAEliminar] = useState(null);
+    const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
+    const [mensajeNotificacion, setMensajeNotificacion] = useState(null);
+
+    // 1. Cargar datos
+    useEffect(() => {
+        setLoading(true);
+        axiosInstance.get(apiBaseURL)
+            .then(resp => {
+                // Asegurar que los datos sean arrays si están almacenados como strings
+                const data = resp.data.map(p => ({
+                    ...p,
+                    medicacionCondiciones: p.medicacionCondiciones ? String(p.medicacionCondiciones).split(', ') : [],
+                    infartoAcvTrombosisTipo: p.infartoAcvTrombosisTipo ? String(p.infartoAcvTrombosisTipo).split(', ') : [],
+                    // ... (hacer esto para todos los campos de tipo Array si el backend los devuelve como string)
+                }));
+                setPacientes(data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Error al cargar pacientes:", err);
+                setLoading(false);
+            });
+    }, []);
+
+    // 2. Lógica de Filtrado
+    const filteredPacientes = useMemo(() => {
+        return pacientes.filter(p => {
+            const edadNum = parseInt(p.edad, 10);
+            
+            // Filtro por DNI
+            if (filtros.dni && !p.dni.toLowerCase().includes(filtros.dni.toLowerCase())) return false;
+            
+            // Filtro por Edad (Rango o exacto)
+            if (filtros.edad) {
+                const filterEdadNum = parseInt(filtros.edad, 10);
+                if (edadNum !== filterEdadNum) return false;
+            }
+
+            // Filtro por Nivel de Riesgo
+            if (filtros.nivelRiesgo && !p.nivelRiesgo.toLowerCase().includes(filtros.nivelRiesgo.toLowerCase())) return false;
+
+            // Filtros de RadioGroup (Sí/No/Opciones específicas)
+            const radioFilters = [
+                'fumaDiario', 'actividadFisica', 'consumoAlcoholRiesgo', 'tomaMedicacionDiario', 
+                'infartoAcvTrombosis', 'enfermedadRenalInsuficiencia', 'enfermedadesAutoinmunes', 
+                'hivHepatitis', 'tumoresMama', 'familiarCancerMama', 'puncionMama', 'mamaDensa',
+                'tuvoHijos', 'reproduccionAsistida', 'menstruacionUltima'
+            ];
+            
+            for (const key of radioFilters) {
+                if (filtros[key] && p[key] !== filtros[key]) {
+                    // Manejo especial para mamaDensa que tiene más opciones
+                    if (key === 'mamaDensa' && !['Sí', 'No', 'No recuerdo', 'No sé lo que es'].includes(filtros[key])) continue;
+                    if (p[key] !== filtros[key]) return false;
+                }
+            }
+
+            return true;
+        });
+    }, [pacientes, filtros]);
+
+    // 3. Manejadores de Interfaz
+    const handleFiltroChange = (e) => {
+        const { name, value } = e.target;
+        setFiltros(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleEdit = (id) => {
+        navigate(`/editar-paciente/${id}`); // Asumo que tienes esta ruta
+    };
+
+    const handleDelete = (id) => {
+        setPacienteAEliminar(id);
+        setMostrarModalConfirmacion(true);
+    };
+
+    const cancelarEliminacion = () => {
+        setPacienteAEliminar(null);
+        setMostrarModalConfirmacion(false);
+    };
+
+    const confirmarEliminacion = () => {
+        axiosInstance.delete(`${apiBaseURL}/${pacienteAEliminar}`)
+            .then(() => {
+                setPacientes(prev => prev.filter(p => p.id !== pacienteAEliminar));
+                setMensajeNotificacion({ texto: `Paciente ID ${pacienteAEliminar} eliminado con éxito.`, tipo: 'success' });
+                setTimeout(() => setMensajeNotificacion(null), 3000);
+            })
+            .catch(err => {
+                console.error("Error al eliminar:", err);
+                setMensajeNotificacion({ texto: 'Error al eliminar paciente.', tipo: 'error' });
+                setTimeout(() => setMensajeNotificacion(null), 3000);
+            })
+            .finally(() => {
+                setMostrarModalConfirmacion(false);
+                setPacienteAEliminar(null);
+            });
+    };
+
+
+    if (loading) {
+        return <div className="text-center p-8 text-xl font-semibold text-indigo-600">Cargando datos de pacientes...</div>;
+    }
+
+    return (
+        <div className="p-6 bg-gray-50 min-h-screen font-sans">
+            <div className="max-w-7xl mx-auto">
+                <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">
+                    Estadísticas y Listado de Pacientes Femeninas
+                </h1> 
+
+                {/* --- SECCIÓN DE FILTROS --- */}
+                <div className="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4">Filtros de Búsqueda</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        
+                        {/* Datos Básicos */}
+                        <input type="text" name="dni" placeholder="Filtrar por DNI" value={filtros.dni} onChange={handleFiltroChange} className="p-2 border rounded-md" />
+                        <input type="number" name="edad" placeholder="Edad (ej. 45)" value={filtros.edad} onChange={handleFiltroChange} className="p-2 border rounded-md" />
+                        <select name="nivelRiesgo" value={filtros.nivelRiesgo} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Riesgo (Todos)</option>
+                            <option value="Bajo">Bajo</option>
+                            <option value="Moderado">Moderado</option>
+                            <option value="Alto">Alto</option>
+                            <option value="Muy Alto">Muy Alto</option>
+                            <option value="Crítico">Crítico</option>
+                        </select>
+                        
+                        {/* Hábitos */}
+                        <select name="fumaDiario" value={filtros.fumaDiario} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Fuma (Todos)</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        <select name="actividadFisica" value={filtros.actividadFisica} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Act. Física (Todos)</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        <select name="consumoAlcoholRiesgo" value={filtros.consumoAlcoholRiesgo} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Alcohol Riesgo</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        
+                        {/* Condiciones Crónicas y Antecedentes */}
+                        <select name="tomaMedicacionDiario" value={filtros.tomaMedicacionDiario} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Medicación (Todos)</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        <select name="infartoAcvTrombosis" value={filtros.infartoAcvTrombosis} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Infarto/ACV/Tromb.</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        <select name="enfermedadRenalInsuficiencia" value={filtros.enfermedadRenalInsuficiencia} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Enf. Renal/IC</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        
+                        {/* Salud Femenina y Mamaria */}
+                        <select name="tumoresMama" value={filtros.tumoresMama} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Tumores Mama</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                        <select name="mamaDensa" value={filtros.mamaDensa} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Mama Densa</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                            <option value="No recuerdo">No recuerdo</option>
+                        </select>
+                        <select name="tuvoHijos" value={filtros.tuvoHijos} onChange={handleFiltroChange} className="p-2 border rounded-md">
+                            <option value="">Tuvo Hijos</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* --- LISTADO DE PACIENTES --- */}
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                    Listado ({filteredPacientes.length} pacientes)
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredPacientes.length > 0 ? (
+                        filteredPacientes.map(p => (
+                            <PacienteCard 
+                                key={p.id} 
+                                paciente={p} 
+                                onEdit={handleEdit} 
+                                onDelete={handleDelete} 
+                            />
+                        ))
+                    ) : (
+                        <p className="col-span-full text-center text-gray-500 p-4 bg-white rounded-lg">No se encontraron pacientes que cumplan los criterios de filtrado.</p>
+                    )}
+                </div>
+            </div>
+            
+            {/* --- MODAL DE CONFIRMACIÓN DE ELIMINACIÓN --- */}
+            {mostrarModalConfirmacion && (
+                <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-red-600 mb-4">Confirmar Eliminación</h3>
+                        <p className="text-gray-700 mb-6">¿Estás seguro de que deseas eliminar al paciente ID <span className="font-semibold">{pacienteAEliminar}</span>? Esta acción es irreversible.</p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={cancelarEliminacion}
+                                className="px-4 py-2 text-sm font-medium bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmarEliminacion}
+                                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MENSAJE DE NOTIFICACIÓN --- */}
+            {mensajeNotificacion && (
+                <div 
+                    className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-xl z-50 transition-opacity duration-300 \n                ${mensajeNotificacion.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}
+                >
+                    {mensajeNotificacion.texto}
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default Estadisticas;
