@@ -23,13 +23,13 @@ function App() {
       <Header />
       <Routes>
         <Route 
-          path="/" 
-          element={
-            (token && (isCardiologo || isCardiologia)) 
-              ? <Formulario /> 
-              : <Navigate to="/" />
-          } 
-        />
+            path="/" 
+            element={
+              token 
+                ? <Formulario /> 
+                : <Navigate to="/login" />
+            } 
+          />
         <Route path="/rcv" element={<Rcv />} />
         <Route path="/tomarPresion" element={<TomarPresion />} />
         
