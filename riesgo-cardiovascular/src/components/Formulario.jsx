@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 // ASUMO que estos archivos existen en tu proyecto y se mantienen igual.
-import { calcularRiesgoCardiovascular } from './Calculadora'; 
+import { calcularRiesgoCardiovascular } from './Calculadora';
 import { obtenerColorRiesgo, obtenerTextoRiesgo } from './ConstFormulario';
 import axiosInstance from '../axiosConfig';
 
@@ -11,47 +11,47 @@ import axiosInstance from '../axiosConfig';
 const datosInicialesMujer = {
     // --- Datos de Entrega de Informe ---
     dni: '',
-    fechaNacimiento: '', 
-    telefono: '',        
+    fechaNacimiento: '',
+    telefono: '',
     edad: '',
-    mail: '', // Nuevo campo
+    mail: '',
     genero: 'femenino',
-    
+
     // --- Historial y Hábitos ---
-    infartoAcvTrombosis: null, // Pregunta principal SI/NO
-    infartoAcvTrombosisTipo: [], // Sub-opciones: 'infarto', 'ACV', 'Trombosis'
-    enfermedadRenalInsuficiencia: null, // Pregunta principal SI/NO
-    enfermedadRenalInsuficienciaTipo: [], // Sub-opciones: 'enfermedad renal', 'insuficiencia cardíaca'
+    infartoAcvTrombosis: null,
+    infartoAcvTrombosisTipo: [],
+    enfermedadRenalInsuficiencia: null,
+    enfermedadRenalInsuficienciaTipo: [],
     tomaMedicacionDiario: null,
-    medicacionCondiciones: [], // Sub-opciones: 'Hipertensión arterial', 'Diabetes', 'Colesterol', 'Otras'
+    medicacionCondiciones: [],
     fumaDiario: null,
-    fumaTipo: [], // Sub-opciones: 'tabaco', 'otros'
-    consumoAlcoholRiesgo: null, // Pregunta nueva de alcohol
-    actividadFisica: null, // SI/NO
-    horasSueno: null, // SI/NO
-    horasSuenoProblema: [], // Sub-opciones (si NO): 'Insomnio', 'otros'
-    estresAngustiaCronica: null, // Pregunta principal SI/NO
-    estresTipo: [], // Sub-opciones: 'estrés', 'angustia', 'ansiedad', 'depresión'
+    fumaTipo: [],
+    consumoAlcoholRiesgo: null,
+    actividadFisica: null,
+    horasSueno: null,
+    horasSuenoProblema: [],
+    estresAngustiaCronica: null,
+    estresTipo: [],
     enfermedadesAutoinmunes: null,
-    autoinmunesTipo: [], // Sub-opciones: 'lupus', 'artritis reumatoidea', 'psoriasis', 'otra'
+    autoinmunesTipo: [],
     hivHepatitis: null,
-    
+
     // --- Historial Ginecológico ---
-    tumoresMama: null, // Pregunta principal SI/NO
-    tumoresMamaTratamiento: [], // Sub-opciones: 'recibió radioterapia', 'recibió quimioterapia', 'recibió cirugía'
-    familiarCancerMama: null, // SI/NO
-    puncionMama: null, // Pregunta principal SI/NO
-    puncionMamaMotivo: [], // Sub-opciones: 'sospecha maligna', 'quiste de leche', 'otro'
-    mamaDensa: null, // 'Sí', 'No', 'No recuerdo', 'No sé lo que es'
-    tuvoHijos: null, // Pregunta principal SI/NO
-    complicacionesEmbarazo: [], // Sub-opciones (si SÍ): 'hipertensión arterial gestacional', etc.
+    tumoresMama: null,
+    tumoresMamaTratamiento: [],
+    familiarCancerMama: null,
+    puncionMama: null,
+    puncionMamaMotivo: [],
+    mamaDensa: null,
+    tuvoHijos: null,
+    complicacionesEmbarazo: [],
     reproduccionAsistida: null,
-    abortosSindromeAntifosfolipidico: null, // SI/NO
-    menstruacionEdadRiesgo: null, // SI/NO
-    menstruacionUltima: null, // Pregunta principal SI/NO
-    menopausiaTipo: [], // Sub-opciones (depende de SI/NO de 'menstruacionUltima')
-    incontinenciaOrgasmos: null, // Pregunta principal SI/NO
-    incontinenciaOrgasmosTipo: [], // Sub-opciones: 'incontinencia', 'falta de orgasmos'
+    abortosSindromeAntifosfolipidico: null,
+    menstruacionEdadRiesgo: null,
+    menstruacionUltima: null,
+    menopausiaTipo: [],
+    incontinenciaOrgasmos: null,
+    incontinenciaOrgasmosTipo: [],
 
     // --- Datos Antropométricos y Clínicos ---
     peso: '',
@@ -62,23 +62,99 @@ const datosInicialesMujer = {
     colesterol: 'No', // Se mantiene por si se usa en la lógica de riesgo
 };
 
+
+// *************************************************************************
+// ** COMPONENTES REUTILIZABLES (EXTERNALIZADOS) **
+// *************************************************************************
+
+const InputField = ({ label, name, type = 'text', placeholder, isRequired = false, min, max, value, onChange, readOnly = false, disabled = false }) => (
+    <div>
+        <label htmlFor={name} className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+        <input
+            type={type}
+            name={name}
+            id={name}
+            value={value || ''}
+            onChange={onChange}
+            placeholder={placeholder}
+            required={isRequired}
+            min={min}
+            max={max}
+            readOnly={readOnly}
+            disabled={disabled}
+            className={`mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+        />
+    </div>
+);
+
+const RadioGroup = ({ label, name, options = ['Sí', 'No'], conditionalContent, isRequired = false, value, onChange }) => (
+    <div className="flex flex-col border p-3 rounded-lg bg-white shadow-sm">
+        <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+        <div className="mt-1 flex flex-wrap gap-4">
+            {options.map(opt => (
+                <label key={opt} className="inline-flex items-center text-gray-700">
+                    <input
+                        type="radio"
+                        name={name}
+                        value={opt}
+                        checked={value === opt}
+                        onChange={() => onChange(name, opt)}
+                        className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                    />
+                    <span className="ml-2">{opt}</span>
+                </label>
+            ))}
+        </div>
+        {conditionalContent && value && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                {conditionalContent(value)}
+            </div>
+        )}
+    </div>
+);
+
+const CheckboxGroup = ({ label, fieldName, options, isRequired = false, values, onChange }) => (
+    <div className="flex flex-col">
+        <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
+        <div className="mt-1 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+            {options.map(opt => (
+                <label key={opt} className="inline-flex items-center text-gray-700">
+                    <input
+                        type="checkbox"
+                        value={opt}
+                        checked={Array.isArray(values) ? values.includes(opt) : false}
+                        onChange={() => onChange(fieldName, opt)}
+                        className="form-checkbox h-4 w-4 text-indigo-600 rounded"
+                    />
+                    <span className="ml-2 text-sm">{opt}</span>
+                </label>
+            ))}
+        </div>
+    </div>
+);
+
+
+// *************************************************************************
+// ** COMPONENTE PRINCIPAL DEL FORMULARIO **
+// *************************************************************************
+
 const Formulario = () => {
     const [datosMujer, setDatosMujer] = useState(datosInicialesMujer);
-    const [imc, setImc] = useState({ valor: '', clasificacion: '' });
     const [nivelRiesgo, setNivelRiesgo] = useState(null);
     const [mensajeExito, setMensajeExito] = useState('');
     const [mostrarModal, setMostrarModal] = useState(false);
     const [modalAdvertencia, setModalAdvertencia] = useState(null);
 
-    // --- Lógica de Cálculo Automático (IMC y Edad) ---
-    useEffect(() => {
-        const peso = parseFloat(datosMujer.peso);
-        const tallaCm = parseFloat(datosMujer.talla);
+    // --- Lógica de Cálculo de Estado Derivado (SOLUCIÓN AL PROBLEMA) ---
+    
+    // 1. Cálculo de IMC (se ejecuta en cada render)
+    const calcularIMC = (peso, tallaCm) => {
+        const p = parseFloat(peso);
+        const t = parseFloat(tallaCm);
 
-        // 1. Cálculo de IMC
-        if (peso > 0 && tallaCm > 0) {
-            const tallaM = tallaCm / 100;
-            const imcCalculado = peso / (tallaM * tallaM);
+        if (p > 0 && t > 0) {
+            const tallaM = t / 100;
+            const imcCalculado = p / (tallaM * tallaM);
             let clasificacion = '';
             if (imcCalculado < 18.5) clasificacion = 'Bajo peso';
             else if (imcCalculado < 25) clasificacion = 'Normopeso';
@@ -86,51 +162,70 @@ const Formulario = () => {
             else if (imcCalculado < 35) clasificacion = 'Obesidad Grado I';
             else if (imcCalculado < 40) clasificacion = 'Obesidad Grado II';
             else clasificacion = 'Obesidad Grado III';
-            
-            setImc({ valor: imcCalculado.toFixed(2), clasificacion });
-        } else {
-            setImc({ valor: '', clasificacion: '' });
+            return { valor: imcCalculado.toFixed(2), clasificacion };
         }
-        
-        // 2. Cálculo de Edad
-        if (datosMujer.fechaNacimiento) {
-            const dob = new Date(datosMujer.fechaNacimiento);
-            const today = new Date();
-            let age = today.getFullYear() - dob.getFullYear();
-            const m = today.getMonth() - dob.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-                age--;
-            }
-            setDatosMujer(prev => ({ ...prev, edad: age >= 0 ? age.toString() : '' }));
-        }
-    }, [datosMujer.peso, datosMujer.talla, datosMujer.fechaNacimiento]);
+        return { valor: '', clasificacion: '' };
+    };
+    
+    const imc = calcularIMC(datosMujer.peso, datosMujer.talla);
 
-    // --- Manejadores de Estado ---
+    // 2. Función para calcular la edad
+    const calcularEdad = (fechaNacimiento) => {
+        if (!fechaNacimiento) return '';
+        const dob = new Date(fechaNacimiento);
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+            age--;
+        }
+        return age >= 0 ? age.toString() : '';
+    };
+
+    // --- Manejadores de Estado Optimizados ---
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setDatosMujer(prev => ({ ...prev, [name]: value }));
+        
+        if (name === 'fechaNacimiento') {
+            const edadCalculada = calcularEdad(value);
+            setDatosMujer(prev => ({ 
+                ...prev, 
+                [name]: value,
+                edad: edadCalculada 
+            }));
+        } else {
+            setDatosMujer(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleRadioToggle = (name, value) => {
-        setDatosMujer(prev => ({ ...prev, [name]: value }));
-        // Resetear campos condicionales si la respuesta es 'No'
-        if (value === 'No') {
-            switch(name) {
-                case 'infartoAcvTrombosis': setDatosMujer(prev => ({ ...prev, infartoAcvTrombosisTipo: [] })); break;
-                case 'enfermedadRenalInsuficiencia': setDatosMujer(prev => ({ ...prev, enfermedadRenalInsuficienciaTipo: [] })); break;
-                case 'tomaMedicacionDiario': setDatosMujer(prev => ({ ...prev, medicacionCondiciones: [] })); break;
-                case 'fumaDiario': setDatosMujer(prev => ({ ...prev, fumaTipo: [] })); break;
-                case 'horasSueno': setDatosMujer(prev => ({ ...prev, horasSuenoProblema: [] })); break; // Reset si la respuesta es 'Sí'
-                case 'estresAngustiaCronica': setDatosMujer(prev => ({ ...prev, estresTipo: [] })); break;
-                case 'enfermedadesAutoinmunes': setDatosMujer(prev => ({ ...prev, autoinmunesTipo: [] })); break;
-                case 'tumoresMama': setDatosMujer(prev => ({ ...prev, tumoresMamaTratamiento: [] })); break;
-                case 'puncionMama': setDatosMujer(prev => ({ ...prev, puncionMamaMotivo: [] })); break;
-                case 'tuvoHijos': setDatosMujer(prev => ({ ...prev, complicacionesEmbarazo: [] })); break;
-                case 'menstruacionUltima': setDatosMujer(prev => ({ ...prev, menopausiaTipo: [] })); break;
-                case 'incontinenciaOrgasmos': setDatosMujer(prev => ({ ...prev, incontinenciaOrgasmosTipo: [] })); break;
-                default: break;
+        setDatosMujer(prev => {
+            let newState = { ...prev, [name]: value };
+
+            if (value === 'No') {
+                switch (name) {
+                    case 'infartoAcvTrombosis': newState.infartoAcvTrombosisTipo = []; break;
+                    case 'enfermedadRenalInsuficiencia': newState.enfermedadRenalInsuficienciaTipo = []; break;
+                    case 'tomaMedicacionDiario': newState.medicacionCondiciones = []; break;
+                    case 'fumaDiario': newState.fumaTipo = []; break;
+                    case 'estresAngustiaCronica': newState.estresTipo = []; break;
+                    case 'enfermedadesAutoinmunes': newState.autoinmunesTipo = []; break;
+                    case 'tumoresMama': newState.tumoresMamaTratamiento = []; break;
+                    case 'puncionMama': newState.puncionMamaMotivo = []; break;
+                    case 'tuvoHijos': newState.complicacionesEmbarazo = []; break;
+                    case 'incontinenciaOrgasmos': newState.incontinenciaOrgasmosTipo = []; break;
+                    case 'menstruacionUltima': newState.menopausiaTipo = []; break;
+                    default: break;
+                }
+            } else if (value === 'Sí') {
+                 switch (name) {
+                    case 'horasSueno': newState.horasSuenoProblema = []; break;
+                    case 'menstruacionUltima': newState.menopausiaTipo = []; break;
+                    default: break;
+                 }
             }
-        }
+            return newState;
+        });
     };
 
     const handleCheckboxChange = (field, value) => {
@@ -142,8 +237,8 @@ const Formulario = () => {
             return { ...prev, [field]: newList };
         });
     };
-    
-    // --- Lógica de Envío (manteniendo la estructura original) ---
+
+    // --- Lógica de Envío (sin cambios) ---
     const validarCampos = () => {
         if (!datosMujer.dni || !datosMujer.fechaNacimiento || !datosMujer.tensionSistolica || !datosMujer.peso || !datosMujer.talla) {
             setModalAdvertencia('Por favor, complete DNI, Fecha de Nacimiento, Peso, Talla y Tensión Sistólica (mínimo) para guardar y calcular el riesgo.');
@@ -178,23 +273,19 @@ const Formulario = () => {
             return;
         }
 
-        // Lógica de Riesgo Crítico (Simplificada para el ejemplo)
         const tieneRiesgoCritico = datosMujer.infartoAcvTrombosis === 'Sí' || datosMujer.enfermedadRenalInsuficiencia === 'Sí';
         if (tieneRiesgoCritico) {
-            setNivelRiesgo('>30% <40% Muy Alto');
-            setModalAdvertencia('Paciente con historial de infarto/ACV o enfermedad renal. Riesgo Cardiovascular es considerado **Muy Alto**.');
+            const riesgo = '>30% <40% Muy Alto';
+            setNivelRiesgo(riesgo);
+            setModalAdvertencia('Paciente con historial de infarto/ACV o enfermedad renal. Riesgo Cardiovascular es considerado <strong>Muy Alto</strong>.');
             setMostrarModal(true);
             return;
         }
         
-        // Uso de la función stub calcularRiesgoCardiovascular
         const edadAjustada = ajustarEdad(parseInt(datosMujer.edad, 10));
         const presionArterial = ajustarPresionArterial(parseInt(datosMujer.tensionSistolica, 10));
         const diabetes = datosMujer.medicacionCondiciones.includes('Diabetes') ? 'si' : 'no'; 
         const fuma = datosMujer.fumaDiario === 'Sí' ? 'si' : 'no';
-        
-        // Colesterol no se pide en el nuevo formulario, se pasa "No" o se elimina, 
-        // mantendremos "No" para que el stub funcione.
         const colesterolParaCalculo = "No"; 
 
         const riesgoCalculado = calcularRiesgoCardiovascular(
@@ -208,28 +299,19 @@ const Formulario = () => {
     const guardarPaciente = async () => {
         try {
             if (!validarCampos()) {
-                 setMostrarModal(false); // No guardar si falló la validación
+                 setMostrarModal(false); 
                  return;
             }
             
             let datosParaEnviar = { ...datosMujer };
             const hoy = new Date();
-            datosParaEnviar.fechaRegistro = hoy.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+            datosParaEnviar.fechaRegistro = hoy.toISOString().split('T')[0];
 
-            // Convertir arrays de checkboxes a string para el backend (ej: 'opcion1, opcion2')
             const camposArray = [
-                'infartoAcvTrombosisTipo', 
-                'enfermedadRenalInsuficienciaTipo', 
-                'medicacionCondiciones', 
-                'fumaTipo', 
-                'horasSuenoProblema', 
-                'estresTipo', 
-                'autoinmunesTipo', 
-                'tumoresMamaTratamiento', 
-                'puncionMamaMotivo', 
-                'complicacionesEmbarazo', 
-                'menopausiaTipo', 
-                'incontinenciaOrgasmosTipo'
+                'infartoAcvTrombosisTipo', 'enfermedadRenalInsuficienciaTipo', 'medicacionCondiciones', 
+                'fumaTipo', 'horasSuenoProblema', 'estresTipo', 'autoinmunesTipo', 
+                'tumoresMamaTratamiento', 'puncionMamaMotivo', 'complicacionesEmbarazo', 
+                'menopausiaTipo', 'incontinenciaOrgasmosTipo'
             ];
             
             camposArray.forEach(campo => {
@@ -238,7 +320,6 @@ const Formulario = () => {
                 }
             });
 
-            // Limpiar valores 'null' o no utilizados
             Object.keys(datosParaEnviar).forEach(key => {
                 if (datosParaEnviar[key] === null) {
                     datosParaEnviar[key] = '';
@@ -251,7 +332,6 @@ const Formulario = () => {
                 nivelRiesgo: nivelRiesgo,
             };
             
-            // Eliminar campos temporales que no van al modelo de datos final si es necesario
             delete payload.colesterol;
             
             await axiosInstance.post('/api/pacientes', payload);
@@ -273,83 +353,14 @@ const Formulario = () => {
         setMostrarModal(false);
         setModalAdvertencia(null);
     };
-    
-    // --- Componentes Reutilizables ---
-    
-    const RadioGroup = ({ label, name, options = ['Sí', 'No'], conditionalContent, isRequired=false }) => (
-        <div className="flex flex-col border p-3 rounded-lg bg-white shadow-sm">
-            <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
-            <div className="mt-1 flex flex-wrap gap-4">
-                {options.map(opt => (
-                    <label key={opt} className="inline-flex items-center text-gray-700">
-                        <input
-                            type="radio"
-                            name={name}
-                            value={opt}
-                            checked={datosMujer[name] === opt}
-                            onChange={() => handleRadioToggle(name, opt)}
-                            className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
-                        />
-                        <span className="ml-2">{opt}</span>
-                    </label>
-                ))}
-            </div>
-            {/* Contenido Condicional (puede ser Input o CheckboxGroup) */}
-            {conditionalContent && datosMujer[name] && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
-                    {conditionalContent(datosMujer[name])}
-                </div>
-            )}
-        </div>
-    );
-    
-    const CheckboxGroup = ({ label, fieldName, options, isRequired=false }) => (
-        <div className="flex flex-col">
-            <label className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
-            <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-2">
-                {options.map(opt => (
-                    <label key={opt} className="inline-flex items-center text-gray-700">
-                        <input
-                            type="checkbox"
-                            value={opt}
-                            checked={Array.isArray(datosMujer[fieldName]) ? datosMujer[fieldName].includes(opt) : false}
-                            onChange={() => handleCheckboxChange(fieldName, opt)}
-                            className="form-checkbox h-4 w-4 text-indigo-600 rounded"
-                        />
-                        <span className="ml-2 text-sm">{opt}</span>
-                    </label>
-                ))}
-            </div>
-        </div>
-    );
-    
-    const InputField = ({ label, name, type = 'text', placeholder, isRequired = false, min, max }) => (
-        <div>
-            <label htmlFor={name} className={`block text-sm font-medium text-gray-700 ${isRequired ? 'after:content-[\'*\'] after:ml-0.5 after:text-red-500' : ''}`}>{label}</label>
-            <input 
-                type={type} 
-                name={name} 
-                id={name} 
-                value={datosMujer[name] || ''} 
-                onChange={handleChange} 
-                placeholder={placeholder} 
-                required={isRequired}
-                min={min}
-                max={max}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            />
-        </div>
-    );
-    // --- Fin Componentes Reutilizables ---
 
     return (
         <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen font-sans">
             <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl w-full">
                 <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">
                     Formulario de Salud Femenina y Riesgo Cardiovascular
-                </h1> 
+                </h1>
 
-                {/* Mensaje de éxito */}
                 {mensajeExito && <div className="fixed bottom-4 right-4 bg-green-500 text-white p-4 rounded-md shadow-lg z-50">{mensajeExito}</div>}
                 
                 <form className="w-full space-y-10" onSubmit={(e) => { e.preventDefault(); calcularRiesgo(); }}>
@@ -362,11 +373,15 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Alguna vez ha tenido un infarto, un ACV o Trombosis arterial?" 
                                 name="infartoAcvTrombosis" 
+                                value={datosMujer.infartoAcvTrombosis}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Seleccione el antecedente:" 
                                         fieldName="infartoAcvTrombosisTipo" 
                                         options={['infarto', 'ACV', 'Trombosis arterial']} 
+                                        values={datosMujer.infartoAcvTrombosisTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -374,11 +389,15 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Tiene enfermedad Renal Crónica o Insuficiencia Cardíaca?" 
                                 name="enfermedadRenalInsuficiencia" 
+                                value={datosMujer.enfermedadRenalInsuficiencia}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Seleccione la condición:" 
                                         fieldName="enfermedadRenalInsuficienciaTipo" 
-                                        options={['enfermedad renal', 'insuficiencia cardíaca']} 
+                                        options={['enfermedad renal', 'insuficiencia cardíaca']}
+                                        values={datosMujer.enfermedadRenalInsuficienciaTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -386,11 +405,15 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Toma medicación a diario?" 
                                 name="tomaMedicacionDiario" 
+                                value={datosMujer.tomaMedicacionDiario}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="¿Para qué condición?" 
                                         fieldName="medicacionCondiciones" 
                                         options={['Hipertensión arterial', 'Diabetes', 'Colesterol', 'Otras']} 
+                                        values={datosMujer.medicacionCondiciones}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -398,26 +421,34 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Fuma a diario?" 
                                 name="fumaDiario" 
+                                value={datosMujer.fumaDiario}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="¿Qué fuma?" 
                                         fieldName="fumaTipo" 
-                                        options={['tabaco', 'otros']} 
+                                        options={['tabaco', 'otros']}
+                                        values={datosMujer.fumaTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
 
-                            <RadioGroup label="¿Toma más de 5 vasos de cerveza, o más de 3 copas de vino semanales?" name="consumoAlcoholRiesgo" />
-                            <RadioGroup label="¿Realiza actividad física 150 minutos semanales?" name="actividadFisica" />
+                            <RadioGroup label="¿Toma más de 5 vasos de cerveza, o más de 3 copas de vino semanales?" name="consumoAlcoholRiesgo" value={datosMujer.consumoAlcoholRiesgo} onChange={handleRadioToggle}/>
+                            <RadioGroup label="¿Realiza actividad física 150 minutos semanales?" name="actividadFisica" value={datosMujer.actividadFisica} onChange={handleRadioToggle}/>
                             
                             <RadioGroup 
                                 label="¿Duerme entre 6 y 8 horas diarias?" 
                                 name="horasSueno" 
+                                value={datosMujer.horasSueno}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'No' && (
                                     <CheckboxGroup 
                                         label="¿Qué problema presenta?" 
                                         fieldName="horasSuenoProblema" 
-                                        options={['Insomnio', 'otros']} 
+                                        options={['Insomnio', 'otros']}
+                                        values={datosMujer.horasSuenoProblema}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -425,11 +456,15 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Siente que presenta estrés, angustia, ansiedad o depresión en forma permanente o Crónica?" 
                                 name="estresAngustiaCronica" 
+                                value={datosMujer.estresAngustiaCronica}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Seleccione el problema:" 
                                         fieldName="estresTipo" 
                                         options={['estrés', 'angustia', 'ansiedad', 'depresión']} 
+                                        values={datosMujer.estresTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -437,20 +472,24 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Le dijeron alguna vez que tiene alguna enfermedad autoinmune?" 
                                 name="enfermedadesAutoinmunes" 
+                                value={datosMujer.enfermedadesAutoinmunes}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Seleccione la enfermedad:" 
                                         fieldName="autoinmunesTipo" 
                                         options={['lupus', 'artritis reumatoidea', 'psoriasis', 'otra']} 
+                                        values={datosMujer.autoinmunesTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
                             
-                            <RadioGroup label="¿Presenta HIV o Hepatitis B/C?" name="hivHepatitis" />
+                            <RadioGroup label="¿Presenta HIV o Hepatitis B/C?" name="hivHepatitis" value={datosMujer.hivHepatitis} onChange={handleRadioToggle}/>
                         </div>
                     </div>
 
-                    {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO --- */}
+                    {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO (AHORA COMPLETA) --- */}
                     <div className="space-y-6 p-4 border border-pink-300 rounded-lg bg-pink-100">
                         <h2 className="text-xl font-bold text-pink-800 border-b pb-1">2. Historial Ginecológico</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -458,25 +497,33 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Antecedentes de tumores de mama?" 
                                 name="tumoresMama" 
+                                value={datosMujer.tumoresMama}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="¿Qué tratamiento recibió?" 
                                         fieldName="tumoresMamaTratamiento" 
                                         options={['recibió radioterapia', 'recibió quimioterapia', 'recibió cirugía']} 
+                                        values={datosMujer.tumoresMamaTratamiento}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
 
-                            <RadioGroup label="¿Tiene algún familiar con cáncer de mama?" name="familiarCancerMama" />
+                            <RadioGroup label="¿Tiene algún familiar con cáncer de mama?" name="familiarCancerMama" value={datosMujer.familiarCancerMama} onChange={handleRadioToggle} />
 
                             <RadioGroup 
                                 label="¿Alguna vez le hicieron alguna punción de mama?" 
                                 name="puncionMama" 
+                                value={datosMujer.puncionMama}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="¿Cuál fue el motivo?" 
                                         fieldName="puncionMamaMotivo" 
                                         options={['sospecha maligna', 'quiste de leche', 'otro']} 
+                                        values={datosMujer.puncionMamaMotivo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -484,50 +531,66 @@ const Formulario = () => {
                             <RadioGroup 
                                 label="¿Le dijeron si tenía mama densa al ver su mamografía?" 
                                 name="mamaDensa" 
+                                value={datosMujer.mamaDensa}
+                                onChange={handleRadioToggle}
                                 options={['Sí', 'No', 'No recuerdo', 'No sé lo que es']}
                             />
 
                             <RadioGroup 
                                 label="¿Tuvo hijos?" 
                                 name="tuvoHijos" 
+                                value={datosMujer.tuvoHijos}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Complicaciones en algún embarazo:" 
                                         fieldName="complicacionesEmbarazo" 
                                         options={['hipertensión arterial gestacional', 'preeclampsia', 'eclampsia', 'diabetes gestacional', 'parto prematuro antes de las 37 semanas de gestación']} 
+                                        values={datosMujer.complicacionesEmbarazo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
 
-                            <RadioGroup label="¿Utilizó reproducción asistida?" name="reproduccionAsistida" />
+                            <RadioGroup label="¿Utilizó reproducción asistida?" name="reproduccionAsistida" value={datosMujer.reproduccionAsistida} onChange={handleRadioToggle} />
                             
                             <RadioGroup 
                                 label="¿Presentó abortos espontáneos (más de 2) o le dijeron que tenía síndrome antifosfolipídico?" 
                                 name="abortosSindromeAntifosfolipidico" 
+                                value={datosMujer.abortosSindromeAntifosfolipidico}
+                                onChange={handleRadioToggle}
                             />
                             
                             <RadioGroup 
                                 label="¿Su primera menstruación fue antes de los 10 años o después de los 17?" 
                                 name="menstruacionEdadRiesgo" 
+                                value={datosMujer.menstruacionEdadRiesgo}
+                                onChange={handleRadioToggle}
                             />
 
                             <RadioGroup 
                                 label="¿Su última menstruación fue hace más de un año?" 
                                 name="menstruacionUltima" 
+                                value={datosMujer.menstruacionUltima}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => (
                                     <>
                                         {respuesta === 'Sí' && (
                                             <CheckboxGroup 
                                                 label="Causas (si 'Sí'):" 
                                                 fieldName="menopausiaTipo" 
-                                                options={['presenta histerectomía', 'menopausia', 'otra']} 
+                                                options={['presenta histerectomía', 'menopausia', 'otra']}
+                                                values={datosMujer.menopausiaTipo}
+                                                onChange={handleCheckboxChange}
                                             />
                                         )}
                                         {respuesta === 'No' && (
                                             <CheckboxGroup 
                                                 label="Estado (si 'No'):" 
                                                 fieldName="menopausiaTipo" 
-                                                options={['perimenopausia', 'ciclos normales', 'anticonceptivos']} 
+                                                options={['perimenopausia', 'ciclos normales', 'anticonceptivos']}
+                                                values={datosMujer.menopausiaTipo}
+                                                onChange={handleCheckboxChange}
                                             />
                                         )}
                                     </>
@@ -536,12 +599,16 @@ const Formulario = () => {
 
                             <RadioGroup 
                                 label="¿Tiene problemas de incontinencia urinaria o falta de orgasmos habitualmente?" 
-                                name="incontinenciaOrgasmos" 
+                                name="incontinenciaOrgasmos"
+                                value={datosMujer.incontinenciaOrgasmos}
+                                onChange={handleRadioToggle}
                                 conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                     <CheckboxGroup 
                                         label="Seleccione el problema:" 
                                         fieldName="incontinenciaOrgasmosTipo" 
                                         options={['incontinencia', 'falta de orgasmos']} 
+                                        values={datosMujer.incontinenciaOrgasmosTipo}
+                                        onChange={handleCheckboxChange}
                                     />
                                 )}
                             />
@@ -552,11 +619,11 @@ const Formulario = () => {
                     <div className="space-y-6 p-4 border border-green-200 rounded-lg bg-green-50">
                         <h2 className="text-xl font-bold text-green-800 border-b pb-1">3. Datos Antropométricos y Clínicos</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <InputField label="Peso (kg)" name="peso" type="number" min="1" placeholder="Ej: 75.5" isRequired={true} />
-                            <InputField label="Talla (cm)" name="talla" type="number" min="1" placeholder="Ej: 170" isRequired={true} />
-                            <InputField label="Cintura (cm)" name="cintura" type="number" min="1" placeholder="Ej: 90" />
-                            <InputField label="Tensión Sistólica (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} />
-                            <InputField label="Tensión Diastólica (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" />
+                            <InputField label="Peso (kg)" name="peso" type="number" min="1" placeholder="Ej: 75.5" isRequired={true} value={datosMujer.peso} onChange={handleChange} />
+                            <InputField label="Talla (cm)" name="talla" type="number" min="1" placeholder="Ej: 170" isRequired={true} value={datosMujer.talla} onChange={handleChange}/>
+                            <InputField label="Cintura (cm)" name="cintura" type="number" min="1" placeholder="Ej: 90" value={datosMujer.cintura} onChange={handleChange} />
+                            <InputField label="Tensión Sistólica (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} value={datosMujer.tensionSistolica} onChange={handleChange}/>
+                            <InputField label="Tensión Diastólica (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" value={datosMujer.tensionDiastolica} onChange={handleChange}/>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-white shadow-sm mt-6">
@@ -577,11 +644,11 @@ const Formulario = () => {
                     <div className="space-y-6 p-4 border border-gray-300 rounded-lg bg-gray-100">
                         <h2 className="text-xl font-bold text-gray-800 border-b pb-1">4. Datos de Entrega de Informe</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <InputField label="DNI" name="dni" type="text" placeholder="Número de DNI" isRequired={true} />
-                            <InputField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" isRequired={true} />
-                            <InputField label="Edad (Automática)" name="edad" type="text" isRequired={true} placeholder="Calculada automáticamente" readOnly disabled />
-                            <InputField label="TELÉFONO" name="telefono" type="tel" placeholder="Nro. de contacto" />
-                            <InputField label="MAIL" name="mail" type="email" placeholder="Correo electrónico" />
+                            <InputField label="DNI" name="dni" type="text" placeholder="Número de DNI" isRequired={true} value={datosMujer.dni} onChange={handleChange}/>
+                            <InputField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" isRequired={true} value={datosMujer.fechaNacimiento} onChange={handleChange}/>
+                            <InputField label="Edad (Automática)" name="edad" type="text" isRequired={true} placeholder="Calculada automáticamente" value={datosMujer.edad} readOnly disabled />
+                            <InputField label="TELÉFONO" name="telefono" type="tel" placeholder="Nro. de contacto" value={datosMujer.telefono} onChange={handleChange}/>
+                            <InputField label="MAIL" name="mail" type="email" placeholder="Correo electrónico" value={datosMujer.mail} onChange={handleChange}/>
                         </div>
                     </div>
                     
@@ -598,8 +665,8 @@ const Formulario = () => {
 
             </div>
             
-            {/* --- MODAL DE RIESGO Y GUARDADO (Mantiene lógica del archivo anterior) --- */}
-            {mostrarModal && nivelRiesgo && (
+            {/* --- MODAL DE RIESGO Y GUARDADO --- */}
+            {mostrarModal && nivelRiesgo && !modalAdvertencia && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4">
                     <div className="bg-white p-6 rounded-md shadow-2xl w-full max-w-lg">
                         <h2 className="text-2xl font-bold mb-4 text-indigo-700">Resultado del Cálculo de Riesgo</h2>
@@ -631,7 +698,7 @@ const Formulario = () => {
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-md shadow-lg w-11/12 max-w-lg">
                         <h2 className="text-lg font-semibold mb-4 text-red-600">Aviso</h2>
-                        <p>{modalAdvertencia}</p>
+                        <p dangerouslySetInnerHTML={{ __html: modalAdvertencia }}></p>
                         <button onClick={cerrarModal} className="mt-4 py-2 px-4 bg-gray-500 text-white rounded-md w-full">Entendido</button>
                     </div>
                 </div>
