@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+
+// Componentes
 import Header from './components/Header';
 import Estadisticas from './components/Estadisticas';
 import Formulario from './components/Formulario';
@@ -10,6 +12,8 @@ import Register from './components/Register';
 import AdminPanel from './components/AdminPanel';
 import Rcv from './components/Rcv';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
+
+// Contexto de autenticación
 import { useAuth } from './context/AuthContext';
 
 function App() {
@@ -22,21 +26,15 @@ function App() {
     <Router>
       <Header />
       <Routes>
-        {/* Página de inicio: Formulario (requiere solo estar autenticado) */}
-        <Route 
-          path="/" 
-          element={
-            token 
-              ? <Formulario /> 
-              : <Navigate to="/login" />
-          } 
-        />
 
-        {/* Acceso libre */}
+        {/* Página de inicio: Formulario (acceso libre, sin autenticación) */}
+        <Route path="/" element={<Formulario />} />
+
+        {/* Rutas públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Acceso autenticado (sin requerir rol) */}
+        {/* Rutas protegidas (requieren autenticación) */}
         <Route 
           path="/rcv" 
           element={token ? <Rcv /> : <Navigate to="/login" />} 
@@ -46,7 +44,7 @@ function App() {
           element={token ? <TomarPresion /> : <Navigate to="/login" />} 
         />
 
-        {/* Acceso restringido por rol */}
+        {/* Rutas protegidas por roles */}
         <Route 
           path="/estadisticas" 
           element={
@@ -75,8 +73,9 @@ function App() {
           }
         />
 
-        {/* Redirección por defecto */}
+        {/* Redirección por defecto a "/" */}
         <Route path="*" element={<Navigate to="/" />} />
+
       </Routes>
     </Router>
   );
