@@ -22,18 +22,31 @@ function App() {
     <Router>
       <Header />
       <Routes>
+        {/* Página de inicio: Formulario (requiere solo estar autenticado) */}
         <Route 
-            path="/" 
-            element={
-              token 
-                ? <Formulario /> 
-                : <Navigate to="/login" />
-            } 
-          />
-        <Route path="/rcv" element={<Rcv />} />
-        <Route path="/tomarPresion" element={<TomarPresion />} />
-        
-        {/* Permitir acceso solo a CARDIOLOGO para Estadisticas */}
+          path="/" 
+          element={
+            token 
+              ? <Formulario /> 
+              : <Navigate to="/login" />
+          } 
+        />
+
+        {/* Acceso libre */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Acceso autenticado (sin requerir rol) */}
+        <Route 
+          path="/rcv" 
+          element={token ? <Rcv /> : <Navigate to="/login" />} 
+        />
+        <Route 
+          path="/tomarPresion" 
+          element={token ? <TomarPresion /> : <Navigate to="/login" />} 
+        />
+
+        {/* Acceso restringido por rol */}
         <Route 
           path="/estadisticas" 
           element={
@@ -43,7 +56,6 @@ function App() {
             />
           } 
         />
-
         <Route
           path="/editar-paciente/:id"
           element={
@@ -62,8 +74,8 @@ function App() {
             />
           }
         />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+
+        {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
