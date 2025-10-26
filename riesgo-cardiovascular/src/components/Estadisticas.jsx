@@ -141,7 +141,6 @@ function Estadisticas() {
       tuvoHijos: 'Tuvo Hijos', complicacionesEmbarazo: 'Complicaciones en Embarazo',
       reproduccionAsistida: 'Usó Reproducción Asistida', abortosSindromeAntifosfolipidico: 'Abortos o SAF',
       menstruacionEdadRiesgo: 'Menstruación en Edad de Riesgo', menstruacionUltima: 'Última menstruación hace +1 año', menopausiaTipo: 'Estado/Causa Menopausia',
-      incontinenciaOrgasmos: 'Incontinencia o Falta de Orgasmos', incontinenciaOrgasmosTipo: 'Tipo de Problema',
       peso: 'Peso (kg)', talla: 'Talla (cm)', cintura: 'Cintura (cm)',
       tensionSistolica: 'Tensión Sistólica', tensionDiastolica: 'Tensión Diastólica',
       imc: 'IMC (Valor y Clasificación)', nivelRiesgo: 'Nivel de Riesgo Cardiovascular', fechaRegistro: 'Fecha de Registro'
