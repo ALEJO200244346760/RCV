@@ -117,7 +117,7 @@ function Estadisticas() {
   
   const handleEdit = (id) => {
     if (id) {
-        navigate(`/formulario/${id}`); 
+        navigate(`/editar-paciente/${id}`); 
     } else {
         setMensajeNotificacion({ tipo: 'error', texto: 'Error: ID de paciente no definido.' });
         setTimeout(() => setMensajeNotificacion(null), 4000);
