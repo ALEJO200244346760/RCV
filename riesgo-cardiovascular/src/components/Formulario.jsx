@@ -7,7 +7,6 @@ import axiosInstance from '../axiosConfig';
 // *************************************************************************
 // ** MAPA DE DEVOLUCIONES (Sin cambios) **
 // *************************************************************************
-const navigate = useNavigate();
 
 const feedbackMessages = {
     infartoAcvTrombosis: {
@@ -103,6 +102,7 @@ const ReporteDevolucion = ({ datos }) => {
     // Helper (Sin cambios)
     const ReporteItem = ({ pregunta, respuesta, subOpciones, mensaje }) => {
         // La lógica de .join() aquí AHORA ES SEGURA porque le pasaremos un array
+        const navigate = useNavigate();
         const colorRespuesta = respuesta === 'Sí' ? 'text-red-600' : 'text-green-700';
         return (
             <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
