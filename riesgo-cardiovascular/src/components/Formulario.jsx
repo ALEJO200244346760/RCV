@@ -89,7 +89,8 @@ const feedbackMessages = {
     // Antropométricos
     cintura: {
         pregunta: 'Cintura (cm)',
-        mensaje: 'Tener más de 88 cm de cintura se asocia al aumento de probabilidades de diabetes por lo que se sugiere comer saludable y hacer actividad física regular.',
+        mensajeMayor: 'Tener más de 88 cm de cintura se asocia al aumento de probabilidades de diabetes por lo que se sugiere comer saludable y hacer actividad física regular.',
+        mensajeMenor: 'Tener una cintura menor de 88 cm es importante porque indica que tienes poca grasa almacenada alrededor de tus órganos internos. Esta grasa interna, llamada visceral, es peligrosa porque libera sustancias que causan inflamación y aumentan tu riesgo de problemas graves como diabetes, colesterol, hipertensión y enfermedades cardiovasculares.',
     },
 };
 
@@ -175,24 +176,18 @@ const ReporteDevolucion = ({ datos }) => {
     
     // Feedback especial para Cintura (Sin cambios)
     const feedbackCintura = () => {
-        const valorCintura = parseFloat(datos.cintura);
-        let mensaje = null;
-        if (valorCintura > 88) {
-            mensaje = feedbackMessages.cintura.mensaje;
-        }
-        return (
-             <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
-                <h4 className="font-semibold text-gray-800">{feedbackMessages.cintura.pregunta}</h4>
-                <p className="mt-1">
-                    <span className="font-bold text-blue-600">{valorCintura ? `${valorCintura} cm` : 'No ingresado'}</span>
-                </p>
-                {mensaje && (
-                    <p className="mt-2 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-2 rounded-md">
-                        {mensaje}
-                    </p>
-                )}
-            </div>
-        );
+    const valorCintura = parseFloat(datos.cintura);
+    let mensaje = null;
+
+    if (isNaN(valorCintura)) {
+        mensaje = 'Por favor ingrese un valor válido de cintura.';
+    } else if (valorCintura > 88) {
+        mensaje = feedbackMessages.cintura.mensajeMayor;
+    } else {
+        mensaje = feedbackMessages.cintura.mensajeMenor;
+    }
+
+    return mensaje;
     };
 
     // Render del Reporte (Sin cambios)
