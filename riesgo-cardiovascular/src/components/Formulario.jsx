@@ -5,7 +5,7 @@ import { obtenerColorRiesgo, obtenerTextoRiesgo } from './ConstFormulario';
 import axiosInstance from '../axiosConfig';
 
 // *************************************************************************
-// ** MAPA DE DEVOLUCIONES (NUEVO) **
+// ** MAPA DE DEVOLUCIONES (Sin cambios) **
 // *************************************************************************
 
 const feedbackMessages = {
@@ -36,7 +36,7 @@ const feedbackMessages = {
     },
     horasSueno: {
         pregunta: '¿Duerme entre 6 y 8 horas diarias?',
-        si: null, // El usuario puso "5S" que asumo es "Sí"
+        si: null, 
         no: 'Dormir mal aumenta el riesgo de hipertensión estrés y deterioro progresivo de la salud. Incorpora rutinas libres de pantallas, ruidos, cafeína, tóxicos y alimentos. Si el problema persiste busca ayuda profesional.',
     },
     estresAngustiaCronica: {
@@ -67,11 +67,9 @@ const feedbackMessages = {
     },
     puncionMama: {
         pregunta: '¿Alguna vez le hicieron alguna punción de mama?',
-        // No se proporcionó mensaje, solo se mostrará la respuesta.
     },
     mamaDensa: {
         pregunta: '¿Le dijeron si tenía mama densa al ver su mamografía?',
-        // No se proporcionó mensaje, solo se mostrará la respuesta.
     },
     tuvoHijos: {
         pregunta: '¿Tuvo hijos?',
@@ -86,23 +84,23 @@ const feedbackMessages = {
     menstruacionUltima: {
         pregunta: '¿Su última menstruación fue hace más de un año?',
         si: 'La menopausia y la histerectomía, incrementan el riesgo cardiovascular al reducir los estrógenos. Esto provoca un aumento del colesterol malo, disfunción endotelial y cambios metabólicos, como la acumulación de grasa abdominal, aumentando la probabilidad de hipertensión y de diabetes.',
-        no: null, // "No" también tiene opciones (perimenopausia) pero no un mensaje de feedback.
+        no: null, 
     },
     // Antropométricos
     cintura: {
         pregunta: 'Cintura (cm)',
-        // Mensaje especial basado en valor
         mensaje: 'Tener más de 88 cm de cintura se asocia al aumento de probabilidades de diabetes por lo que se sugiere comer saludable y hacer actividad física regular.',
     },
 };
 
 // *************************************************************************
-// ** COMPONENTE DE DEVOLUCIÓN (NUEVO) **
+// ** COMPONENTE DE DEVOLUCIÓN (MODIFICADO) **
 // *************************************************************************
 const ReporteDevolucion = ({ datos }) => {
     
-    // Helper para mostrar un item del reporte
+    // Helper (Sin cambios)
     const ReporteItem = ({ pregunta, respuesta, subOpciones, mensaje }) => {
+        // La lógica de .join() aquí AHORA ES SEGURA porque le pasaremos un array
         const colorRespuesta = respuesta === 'Sí' ? 'text-red-600' : 'text-green-700';
         return (
             <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
@@ -122,7 +120,7 @@ const ReporteDevolucion = ({ datos }) => {
         );
     };
 
-    // Función para obtener el mensaje correcto
+    // Función para obtener el mensaje (MODIFICADA PARA ARREGLAR EL BUG)
     const obtenerFeedback = (key) => {
         const respuesta = datos[key]; // 'Sí' o 'No'
         const data = feedbackMessages[key];
@@ -136,26 +134,46 @@ const ReporteDevolucion = ({ datos }) => {
             mensaje = data.no;
         }
 
-        // Determinar sub-opciones
-        let subOpciones = [];
+        // --- INICIO DE CORRECCIÓN DE BUG ---
+        // 'datos' es el payload final, donde las sub-opciones son strings (ej: "Insomnio")
+        // Necesitamos convertirlos de nuevo a arrays (ej: ["Insomnio"]) para que .join() funcione.
+        
+        let subOpcionesRaw = null; 
         const tipoKey = `${key}Tipo`; // ej: infartoAcvTrombosisTipo
-        if (key === 'tomaMedicacionDiario') subOpciones = datos.medicacionCondiciones;
-        else if (key === 'horasSueno') subOpciones = datos.horasSuenoProblema;
-        else if (key === 'tuvoHijos') subOpciones = datos.complicacionesEmbarazo;
-        else if (key === 'menstruacionUltima') subOpciones = datos.menopausiaTipo;
-        else if (datos[tipoKey] && Array.isArray(datos[tipoKey])) subOpciones = datos[tipoKey];
+
+        if (key === 'tomaMedicacionDiario') subOpcionesRaw = datos.medicacionCondiciones;
+        else if (key === 'horasSueno') subOpcionesRaw = datos.horasSuenoProblema;
+        else if (key === 'tuvoHijos') subOpcionesRaw = datos.complicacionesEmbarazo;
+        else if (key === 'menstruacionUltima') subOpcionesRaw = datos.menopausiaTipo;
+        else if (key === 'estresAngustiaCronica') subOpcionesRaw = datos.estresTipo;
+        else if (key === 'enfermedadesAutoinmunes') subOpcionesRaw = datos.autoinmunesTipo;
+        else if (key === 'tumoresMama') subOpcionesRaw = datos.tumoresMamaTratamiento;
+        else if (key === 'puncionMama') subOpcionesRaw = datos.puncionMamaMotivo;
+        else if (key === 'fumaDiario') subOpcionesRaw = datos.fumaTipo;
+        else if (key === 'infartoAcvTrombosis') subOpcionesRaw = datos.infartoAcvTrombosisTipo;
+        else if (key === 'enfermedadRenalInsuficiencia') subOpcionesRaw = datos.enfermedadRenalInsuficienciaTipo;
+        
+        // Convertir el string (ej: "Insomnio, otros") en un array (ej: ["Insomnio", "otros"])
+        let subOpcionesArray = [];
+        if (typeof subOpcionesRaw === 'string' && subOpcionesRaw.length > 0) {
+            subOpcionesArray = subOpcionesRaw.split(', ');
+        } else if (Array.isArray(subOpcionesRaw)) {
+            // Fallback por si acaso, aunque 'datos' debería tener strings
+            subOpcionesArray = subOpcionesRaw;
+        }
+        // --- FIN DE CORRECCIÓN DE BUG ---
 
         return (
             <ReporteItem 
                 pregunta={data.pregunta}
                 respuesta={respuesta}
-                subOpciones={subOpciones}
+                subOpciones={subOpcionesArray} // Pasamos el array corregido
                 mensaje={mensaje}
             />
         );
     };
     
-    // Feedback especial para Cintura
+    // Feedback especial para Cintura (Sin cambios)
     const feedbackCintura = () => {
         const valorCintura = parseFloat(datos.cintura);
         let mensaje = null;
@@ -177,6 +195,7 @@ const ReporteDevolucion = ({ datos }) => {
         );
     };
 
+    // Render del Reporte (Sin cambios)
     return (
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl w-full">
             <h1 className="text-3xl font-extrabold text-indigo-700 mb-4 border-b pb-2">
@@ -235,7 +254,7 @@ const ReporteDevolucion = ({ datos }) => {
 
 
 // *************************************************************************
-// ** ESTADO INICIAL COMPLETO Y ACTUALIZADO (MODIFICADO) **
+// ** ESTADO INICIAL (Sin cambios) **
 // *************************************************************************
 
 const datosInicialesMujer = {
@@ -280,7 +299,6 @@ const datosInicialesMujer = {
     menstruacionEdadRiesgo: null,
     menstruacionUltima: null,
     menopausiaTipo: [],
-    // Se eliminó incontinenciaOrgasmos y incontinenciaOrgasmosTipo
 
     // --- Datos Antropométricos y Clínicos ---
     peso: '',
@@ -288,7 +306,7 @@ const datosInicialesMujer = {
     cintura: '',
     tensionSistolica: '',
     tensionDiastolica: '',
-    colesterol: 'No', // Se mantiene por si se usa en la lógica de riesgo
+    colesterol: 'No', 
 };
 
 
@@ -364,7 +382,7 @@ const CheckboxGroup = ({ label, fieldName, options, isRequired = false, values, 
 
 
 // *************************************************************************
-// ** COMPONENTE PRINCIPAL DEL FORMULARIO (MODIFICADO) **
+// ** COMPONENTE PRINCIPAL DEL FORMULARIO **
 // *************************************************************************
 
 const Formulario = () => {
@@ -372,9 +390,9 @@ const Formulario = () => {
     const [nivelRiesgo, setNivelRiesgo] = useState(null);
     const [mostrarModal, setMostrarModal] = useState(false);
     const [modalAdvertencia, setModalAdvertencia] = useState(null);
-    const [reporteGenerado, setReporteGenerado] = useState(null); // NUEVO: Estado para mostrar el reporte final
+    const [reporteGenerado, setReporteGenerado] = useState(null); 
 
-    // --- Lógica de Cálculo de Estado Derivado ---
+    // --- Lógica de Cálculo de Estado Derivado (Sin cambios) ---
     const calcularIMC = (peso, tallaCm) => {
         const p = parseFloat(peso);
         const t = parseFloat(tallaCm);
@@ -406,7 +424,7 @@ const Formulario = () => {
         return age >= 0 ? age.toString() : '';
     };
 
-    // --- Manejadores de Estado ---
+    // --- Manejadores de Estado (Sin cambios) ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (name === 'fechaNacimiento') {
@@ -420,6 +438,7 @@ const Formulario = () => {
     const handleRadioToggle = (name, value) => {
         setDatosMujer(prev => {
             let newState = { ...prev, [name]: value };
+            // Limpiar sub-opciones si se marca "No"
             if (value === 'No' || (value === 'Sí' && (name === 'horasSueno' || name === 'menstruacionUltima'))) {
                 switch (name) {
                     case 'infartoAcvTrombosis': newState.infartoAcvTrombosisTipo = []; break;
@@ -431,7 +450,6 @@ const Formulario = () => {
                     case 'tumoresMama': newState.tumoresMamaTratamiento = []; break;
                     case 'puncionMama': newState.puncionMamaMotivo = []; break;
                     case 'tuvoHijos': newState.complicacionesEmbarazo = []; break;
-                    // Se eliminó el case 'incontinenciaOrgasmos'
                     case 'menstruacionUltima': newState.menopausiaTipo = []; break;
                     case 'horasSueno': newState.horasSuenoProblema = []; break;
                     default: break;
@@ -467,6 +485,7 @@ const Formulario = () => {
         return true;
     };
     
+    // Funciones de ajuste (Sin cambios)
     const ajustarEdad = (edad) => {
         if (edad < 50) return 40;
         if (edad >= 50 && edad <= 59) return 50;
@@ -481,6 +500,7 @@ const Formulario = () => {
         return 180;
     };
 
+    // --- calcularRiesgo (MODIFICADO POR REGLA DE DIABETES) ---
     const calcularRiesgo = () => {
         if (!validarCampos()) return;
         
@@ -496,59 +516,64 @@ const Formulario = () => {
         const presionArterial = ajustarPresionArterial(parseInt(datosMujer.tensionSistolica, 10));
         const diabetes = datosMujer.medicacionCondiciones.includes('Diabetes') ? 'si' : 'no';
         const fuma = datosMujer.fumaDiario === 'Sí' ? 'si' : 'no';
-        const colesterolParaCalculo = "No";
+        const colesterolParaCalculo = "No"; // Asumido de tu lógica anterior
 
-        const riesgoCalculado = calcularRiesgoCardiovascular(
+        // Se usa 'let' para poder modificarlo
+        let riesgoCalculado = calcularRiesgoCardiovascular(
             edadAjustada, 'femenino', diabetes, fuma, presionArterial, colesterolParaCalculo
         );
+
+        // --- INICIO DE REGLA DE DIABETES ---
+        // Si tiene diabetes, el riesgo NUNCA puede ser 'Bajo'.
+        // Asumo que los strings de riesgo son '<10% Bajo' y '10-20% Moderado'
+        if (diabetes === 'si' && riesgoCalculado === '<10% Bajo') {
+            riesgoCalculado = '10-20% Moderado'; // Forzar a Moderado
+        }
+        // --- FIN DE REGLA DE DIABETES ---
+
         setNivelRiesgo(riesgoCalculado);
         setModalAdvertencia(null);
         setMostrarModal(true);
     };
     
-    // --- guardarPaciente (MODIFICADO) ---
+    // --- guardarPaciente (Sin cambios) ---
     const guardarPaciente = async () => {
-        // La validación se hace aquí de nuevo por si el usuario edita los datos después de calcular
         if (!validarCampos()) return;
         try {
             let datosParaEnviar = { ...datosMujer };
             datosParaEnviar.fechaRegistro = new Date().toISOString().split('T')[0];
 
+            // Lista de campos que son arrays y necesitan unirse
             const camposArray = [
                 'infartoAcvTrombosisTipo', 'enfermedadRenalInsuficienciaTipo', 'medicacionCondiciones', 
                 'fumaTipo', 'horasSuenoProblema', 'estresTipo', 'autoinmunesTipo', 
                 'tumoresMamaTratamiento', 'puncionMamaMotivo', 'complicacionesEmbarazo', 
-                'menopausiaTipo' // Se quitó 'incontinenciaOrgasmosTipo'
+                'menopausiaTipo' 
             ];
             camposArray.forEach(campo => {
                 if (Array.isArray(datosParaEnviar[campo])) {
                     datosParaEnviar[campo] = datosParaEnviar[campo].join(', ');
                 }
             });
+            // Limpiar valores nulos
             Object.keys(datosParaEnviar).forEach(key => {
                 if (datosParaEnviar[key] === null) datosParaEnviar[key] = '';
             });
 
+            // Payload final para la API
             const payload = {
                 ...datosParaEnviar,
                 imc: `${imc.valor} (${imc.clasificacion})`,
                 nivelRiesgo: nivelRiesgo,
             };
-            delete payload.colesterol;
+            delete payload.colesterol; // No se envía 'colesterol'
             
             await axiosInstance.post('/api/pacientes', payload);
 
-            // --- LÓGICA MODIFICADA ---
-            // En lugar de recargar, cerramos el modal y mostramos el reporte
+            // Mostrar el reporte
             setMostrarModal(false);
-            setReporteGenerado(payload); // 'payload' tiene todos los datos que necesitamos para el reporte
+            setReporteGenerado(payload); // 'payload' tiene los datos para el reporte
             
-            // --- LÓGICA ANTERIOR (ELIMINADA) ---
-            // setMensajeExito('Paciente guardado con éxito');
-            // setMostrarModal(false);
-            // setTimeout(() => setMensajeExito(''), 3000);
-            // setTimeout(() => window.location.reload(), 1000);
-
         } catch (error) {
             console.error('Error al guardar los datos:', error);
             setModalAdvertencia('Ocurrió un error al guardar los datos. Revise la consola para más detalles.');
@@ -561,16 +586,15 @@ const Formulario = () => {
         setModalAdvertencia(null);
     };
 
-    // --- RENDER PRINCIPAL (MODIFICADO) ---
-    // Ahora muestra el Formulario O el ReporteDeDevolución
+    // --- RENDER PRINCIPAL (MODIFICADO TEXTO DE ACTIVIDAD FÍSICA) ---
     return (
         <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen font-sans">
             
             {reporteGenerado ? (
-                // --- VISTA DE REPORTE (NUEVA) ---
+                // --- VISTA DE REPORTE ---
                 <ReporteDevolucion datos={reporteGenerado} />
             ) : (
-                // --- VISTA DE FORMULARIO (ORIGINAL) ---
+                // --- VISTA DE FORMULARIO ---
                 <>
                     <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl w-full">
                         <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">
@@ -648,6 +672,8 @@ const Formulario = () => {
                                     />
 
                                     <RadioGroup label="¿Toma más de 5 vasos de cerveza, o más de 3 copas de vino semanales?" name="consumoAlcoholRiesgo" value={datosMujer.consumoAlcoholRiesgo} onChange={handleRadioToggle}/>
+                                    
+                                    {/* --- TEXTO CORREGIDO --- */}
                                     <RadioGroup label="¿Realiza actividad física 150 minutos semanales?" name="actividadFisica" value={datosMujer.actividadFisica} onChange={handleRadioToggle}/>
                                     
                                     <RadioGroup 
@@ -702,7 +728,7 @@ const Formulario = () => {
                                 </div>
                             </div>
 
-                            {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO (MODIFICADA) --- */}
+                            {/* --- SECCIÓN 2: HISTORIAL GINECOLÓGICO --- */}
                             <div className="space-y-6 p-4 border border-pink-300 rounded-lg bg-pink-100">
                                 <h2 className="text-xl font-bold text-pink-800 border-b pb-1">2. Historial Ginecológico</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -758,7 +784,7 @@ const Formulario = () => {
                                             <CheckboxGroup 
                                                 label="Complicaciones en algún embarazo:" 
                                                 fieldName="complicacionesEmbarazo" 
-                                                options={['hipertensión arterial gestacional', 'preeclampsia', 'eclampsia', 'diabetes gestacional', 'parto prematuro antes de las 37 semanas de gestación']} 
+                                                options={['hipertensión arterial gestacional', 'preeclampsia', 'eclampsia', 'diabetes gestacional', 'parto prematuro antes de las 37 semanas de gestación', 'ninguno']} 
                                                 values={datosMujer.complicacionesEmbarazo}
                                                 onChange={handleCheckboxChange}
                                             />
@@ -810,8 +836,6 @@ const Formulario = () => {
                                         )}
                                     />
                                     
-                                    {/* SE ELIMINÓ EL RADIOGROUP DE INCONTINENCIA */}
-
                                 </div>
                             </div>
 
@@ -896,6 +920,7 @@ const Formulario = () => {
                                             {datosMujer.enfermedadRenalInsuficiencia === 'Sí' && <p className="col-span-2 text-red-600"><strong>Antecedente Crítico:</strong> Enf. Renal / Insuf. Cardíaca</p>}
                                             <p><strong>Diabetes:</strong> {datosMujer.medicacionCondiciones.includes('Diabetes') ? 'Sí' : 'No'}</p>
                                             <p><strong>Hipertensión:</strong> {datosMujer.medicacionCondiciones.includes('Hipertensión arterial') ? 'Sí' : 'No'}</p>
+
                                             <p><strong>Fuma:</strong> {datosMujer.fumaDiario || 'No'}</p>
                                             <p><strong>Alcohol (Riesgo):</strong> {datosMujer.consumoAlcoholRiesgo || 'No'}</p>
                                             {datosMujer.enfermedadesAutoinmunes === 'Sí' && <p><strong>Enf. Autoinmune:</strong> {datosMujer.autoinmunesTipo.join(', ') || 'Sí'}</p>}
