@@ -236,11 +236,11 @@ const ReporteDevolucion = ({ datos }) => {
             </div>
 
             <div className="mt-8 flex justify-end">
-                <button 
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-3 border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                >
-                    Registrar Nuevo Paciente
+                <button
+                    onClick={() => navigate("/final")}
+                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                    Terminar revisión
                 </button>
             </div>
         </div>

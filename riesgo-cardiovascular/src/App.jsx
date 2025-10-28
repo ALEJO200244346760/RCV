@@ -12,6 +12,7 @@ import Register from './components/Register';
 import AdminPanel from './components/AdminPanel';
 import Rcv from './components/Rcv';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
+import Final from './components/Final'; // 👈 Importamos la página Final
 
 // Contexto de autenticación
 import { useAuth } from './context/AuthContext';
@@ -27,7 +28,7 @@ function App() {
       <Header />
       <Routes>
 
-        {/* Página de inicio: Formulario (acceso libre, sin autenticación) */}
+        {/* Página de inicio: Formulario (acceso libre) */}
         <Route path="/" element={<Formulario />} />
 
         {/* Rutas públicas */}
@@ -73,7 +74,10 @@ function App() {
           }
         />
 
-        {/* Redirección por defecto a "/" */}
+        {/* 👇 Nueva ruta para la página Final */}
+        <Route path="/final" element={<Final />} />
+
+        {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" />} />
 
       </Routes>
