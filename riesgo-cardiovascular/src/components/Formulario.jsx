@@ -758,9 +758,9 @@ const Formulario = () => {
                                         onChange={handleRadioToggle}
                                         conditionalContent={(respuesta) => respuesta === 'Sí' && (
                                             <CheckboxGroup 
-                                                label="¿Cuál fue el motivo?" 
+                                                label="¿Cuál fue el resultado?" 
                                                 fieldName="puncionMamaMotivo" 
-                                                options={['sospecha maligna', 'quiste de leche', 'otro']} 
+                                                options={['Benigno', 'Maligno']} 
                                                 values={datosMujer.puncionMamaMotivo}
                                                 onChange={handleCheckboxChange}
                                             />
