@@ -527,7 +527,7 @@ const Formulario = () => {
         // Si tiene diabetes, el riesgo NUNCA puede ser 'Bajo'.
         // Asumo que los strings de riesgo son '<10% Bajo' y '10-20% Moderado'
         if (diabetes === 'si' && riesgoCalculado === '<10% Bajo') {
-            riesgoCalculado = '10-20% Moderado'; // Forzar a Moderado
+            riesgoCalculado = '>10% <20% Moderado'; // Forzar a Moderado
         }
         // --- FIN DE REGLA DE DIABETES ---
 
@@ -872,8 +872,8 @@ const Formulario = () => {
                                         </button>
                                     </div>
                                     </div>
-                                    <InputField label="Tensión Sistólica (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} value={datosMujer.tensionSistolica} onChange={handleChange}/>
-                                    <InputField label="Tensión Diastólica (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" value={datosMujer.tensionDiastolica} onChange={handleChange}/>
+                                    <InputField label="Tensión Máxima (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} value={datosMujer.tensionSistolica} onChange={handleChange}/>
+                                    <InputField label="Tensión Mínima (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" value={datosMujer.tensionDiastolica} onChange={handleChange}/>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-white shadow-sm mt-6">
