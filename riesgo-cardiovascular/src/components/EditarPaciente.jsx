@@ -13,7 +13,7 @@ const apiBaseURL = '/api/pacientes';
 
 
 // *************************************************************************
-// ** ESTADO INICIAL COMPLETO (Sincronizado con Paciente.java y Estadisticas.jsx) **
+// ** ESTADO INICIAL COMPLETO (MODIFICADO) **
 // *************************************************************************
 const initialData = {
     dni: '', fechaNacimiento: '', telefono: '', mail: '', edad: '', genero: 'femenino',
@@ -42,12 +42,13 @@ const initialData = {
     reproduccionAsistida: null, abortosSindromeAntifosfolipidico: null,
     menstruacionEdadRiesgo: null, 
     menstruacionUltima: null, menopausiaTipo: [], 
-    incontinenciaOrgasmos: null, incontinenciaOrgasmosTipo: [],
+    
+    // Se eliminó incontinenciaOrgasmos y incontinenciaOrgasmosTipo
 };
 
 
 // *************************************************************************
-// ** HELPER COMPONENTS (Para simplificar el formulario) **
+// ** HELPER COMPONENTS (Sin cambios) **
 // *************************************************************************
 
 // Opciones de uso general
@@ -94,7 +95,7 @@ const RadioGroup = ({ label, name, options, value, onChange }) => (
     </div>
 );
 
-// Checkbox Group (Para campos que guardan arrays como string)
+// Checkbox Group
 const CheckboxGroup = ({ label, name, options, selectedValues, onChange }) => {
     const handleCheckboxChange = (e) => {
         const { value, checked } = e.target;
@@ -138,7 +139,7 @@ const CheckboxGroup = ({ label, name, options, selectedValues, onChange }) => {
 
 
 // *************************************************************************
-// ** COMPONENTE PRINCIPAL: EditarPaciente **
+// ** COMPONENTE PRINCIPAL: EditarPaciente (MODIFICADO) **
 // *************************************************************************
 function EditarPaciente() {
     const { id } = useParams();
@@ -148,15 +149,16 @@ function EditarPaciente() {
     const [error, setError] = useState(null);
     const [mensajeExito, setMensajeExito] = useState(null);
 
-    // Campos que se almacenan como String separado por coma en el backend
+    // Campos que se almacenan como String separado por coma en el backend (MODIFICADO)
     const arrayFields = useMemo(() => [
         'medicacionCondiciones', 'fumaTipo', 'horasSuenoProblema', 'autoinmunesTipo', 
         'infartoAcvTrombosisTipo', 'enfermedadRenalInsuficienciaTipo', 'tumoresMamaTratamiento',
-        'complicacionesEmbarazo', 'menopausiaTipo', 'incontinenciaOrgasmosTipo'
+        'complicacionesEmbarazo', 'menopausiaTipo'
+        // Se eliminó 'incontinenciaOrgasmosTipo'
     ], []);
 
 
-    // 1. Cargar datos del paciente
+    // 1. Cargar datos del paciente (Sin cambios)
     useEffect(() => {
         setLoading(true);
         axiosInstance.get(`${apiBaseURL}/${id}`)
@@ -183,7 +185,7 @@ function EditarPaciente() {
             });
     }, [id, arrayFields]);
 
-    // 2. Manejar cambios de Inputs, Radio y Checkbox (convierte Checkbox a array)
+    // 2. Manejar cambios de Inputs, Radio y Checkbox (Sin cambios)
     const manejarCambio = (e) => {
         const { name, value, type } = e.target;
         
@@ -201,12 +203,28 @@ function EditarPaciente() {
         }));
     };
     
-    // 3. Manejar el envío del formulario
+    // 3. Manejar el envío del formulario (MODIFICADO POR REGLA DE DIABETES)
     const manejarEnvio = (e) => {
         e.preventDefault();
         
         // Recalcular IMC y Riesgo (usando la función importada)
-        const { imc: nuevoImc, nivelRiesgo: nuevoNivelRiesgo } = calcularRiesgoCardiovascular(datos);
+        // ** ASUMO que tu 'calcularRiesgoCardiovascular' toma el objeto 'datos'
+        // y devuelve un objeto { imc, nivelRiesgo } **
+        
+        // Convertimos a 'let' para poder modificar el riesgo
+        let { imc: nuevoImc, nivelRiesgo: nuevoNivelRiesgo } = calcularRiesgoCardiovascular(datos);
+        
+        // --- INICIO DE REGLA DE DIABETES ---
+        // Verificamos si 'Diabetes' está en el array de condiciones
+        const tieneDiabetes = Array.isArray(datos.medicacionCondiciones) && 
+                              datos.medicacionCondiciones.includes('Diabetes');
+        
+        // Asumo los mismos strings de riesgo que en Formulario.jsx
+        if (tieneDiabetes && nuevoNivelRiesgo === '<10% Bajo') {
+            nuevoNivelRiesgo = '10-20% Moderado'; // Forzar a Moderado
+        }
+        // --- FIN DE REGLA DE DIABETES ---
+
         
         // Crear el objeto de datos a enviar al backend
         const datosAEnviar = { ...datos, imc: nuevoImc, nivelRiesgo: nuevoNivelRiesgo };
@@ -230,6 +248,8 @@ function EditarPaciente() {
         axiosInstance.put(`${apiBaseURL}/${id}`, datosAEnviar)
             .then(() => {
                 setMensajeExito("¡Paciente actualizado con éxito!");
+                // Actualizar el estado local para mostrar el nuevo riesgo
+                setDatos(prev => ({ ...prev, nivelRiesgo: nuevoNivelRiesgo, imc: nuevoImc }));
                 setTimeout(() => setMensajeExito(null), 3000);
             })
             .catch(err => {
@@ -295,7 +315,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="¿Qué tipo?" 
                                 name="infartoAcvTrombosisTipo" 
-                                options={['Infarto Agudo de Miocardio', 'Accidente Cerebrovascular (ACV)', 'Trombosis Venosa Profunda', 'Tromboembolismo Pulmonar']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['infarto', 'ACV', 'Trombosis arterial']} 
                                 selectedValues={datos.infartoAcvTrombosisTipo} 
                                 onChange={manejarCambio} 
                             />
@@ -306,7 +327,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Detalles de la condición:" 
                                 name="enfermedadRenalInsuficienciaTipo" 
-                                options={['Enfermedad Renal Crónica', 'Insuficiencia Cardíaca', 'Trasplante Renal/Cardíaco']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['enfermedad renal', 'insuficiencia cardíaca']} 
                                 selectedValues={datos.enfermedadRenalInsuficienciaTipo} 
                                 onChange={manejarCambio} 
                             />
@@ -317,7 +339,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Condiciones tratadas:" 
                                 name="medicacionCondiciones" 
-                                options={['Hipertensión Arterial', 'Diabetes', 'Colesterol Elevado', 'Otra']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['Hipertensión arterial', 'Diabetes', 'Colesterol', 'Otras']} 
                                 selectedValues={datos.medicacionCondiciones} 
                                 onChange={manejarCambio} 
                             />
@@ -325,18 +348,30 @@ function EditarPaciente() {
                         
                         <RadioGroup label="¿Fuma a diario?" name="fumaDiario" options={opcionesSiNo} value={datos.fumaDiario} onChange={manejarCambio} />
                         {datos.fumaDiario === 'Sí' && (
-                            <InputField 
-                                label="Tipo de producto (Cigarrillo, vapeador, etc.)" 
-                                name="fumaTipo" 
-                                value={datos.fumaTipo} 
-                                onChange={manejarCambio} 
-                                placeholder="Ej: Tabaco, Vapeador"
+                            // Opciones actualizadas para coincidir con Formulario.jsx
+                            <CheckboxGroup 
+                                label="¿Qué fuma?"
+                                name="fumaTipo"
+                                options={['tabaco', 'otros']}
+                                selectedValues={datos.fumaTipo}
+                                onChange={manejarCambio}
                             />
                         )}
 
-                        <RadioGroup label="¿Consume alcohol de riesgo (≥ 14 Uds/sem)?" name="consumoAlcoholRiesgo" options={opcionesSiNo} value={datos.consumoAlcoholRiesgo} onChange={manejarCambio} />
-                        <RadioGroup label="¿Realiza actividad física ≥ 150 min/sem?" name="actividadFisica" options={opcionesSiNo} value={datos.actividadFisica} onChange={manejarCambio} />
+                        <RadioGroup label="¿Toma más de 5 vasos de cerveza, o más de 3 copas de vino semanales?" name="consumoAlcoholRiesgo" options={opcionesSiNo} value={datos.consumoAlcoholRiesgo} onChange={manejarCambio} />
+                        <RadioGroup label="¿Realiza actividad física 150 minutos semanales?" name="actividadFisica" options={opcionesSiNo} value={datos.actividadFisica} onChange={manejarCambio} />
                         
+                        <RadioGroup label="¿Duerme entre 6 y 8 horas diarias?" name="horasSueno" options={opcionesSiNo} value={datos.horasSueno} onChange={manejarCambio} />
+                        {datos.horasSueno === 'No' && (
+                             <InputField 
+                                label="¿Qué problema presenta?"
+                                name="horasSuenoProblema"
+                                value={datos.horasSuenoProblema} 
+                                onChange={manejarCambio} 
+                                placeholder="Ej: Insomnio, otros"
+                            />
+                        )}
+
                         <RadioGroup label="¿Padece de estrés o angustia crónica?" name="estresAngustiaCronica" options={opcionesSiNo} value={datos.estresAngustiaCronica} onChange={manejarCambio} />
                         {datos.estresAngustiaCronica === 'Sí' && (
                              <InputField 
@@ -344,7 +379,7 @@ function EditarPaciente() {
                                 name="estresTipo" 
                                 value={datos.estresTipo} 
                                 onChange={manejarCambio} 
-                                placeholder="Ej: Ansiedad, Depresión, Laboral"
+                                placeholder="Ej: estrés, angustia, ansiedad, depresión"
                             />
                         )}
 
@@ -353,7 +388,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Tipo de enfermedad(es):" 
                                 name="autoinmunesTipo" 
-                                options={['Lupus', 'Artritis Reumatoide', 'Esclerosis Múltiple', 'Otro']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['lupus', 'artritis reumatoidea', 'psoriasis', 'otra']} 
                                 selectedValues={datos.autoinmunesTipo} 
                                 onChange={manejarCambio} 
                             />
@@ -362,7 +398,7 @@ function EditarPaciente() {
                     </div>
 
 
-                    {/* --- SECCIÓN 3: SALUD FEMENINA Y MAMARIA --- */}
+                    {/* --- SECCIÓN 3: SALUD FEMENINA Y MAMARIA (MODIFICADA) --- */}
                     <div className="space-y-6 mb-8 border p-4 rounded-lg bg-pink-50/50 border-pink-200">
                         <h2 className="text-xl font-bold text-pink-700">Salud Femenina y Mamaria</h2>
                         
@@ -371,7 +407,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Tratamientos recibidos:" 
                                 name="tumoresMamaTratamiento" 
-                                options={['Cirugía', 'Quimioterapia', 'Radioterapia', 'Hormonoterapia']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['recibió radioterapia', 'recibió quimioterapia', 'recibió cirugía']} 
                                 selectedValues={datos.tumoresMamaTratamiento} 
                                 onChange={manejarCambio} 
                             />
@@ -385,7 +422,7 @@ function EditarPaciente() {
                                 name="puncionMamaMotivo" 
                                 value={datos.puncionMamaMotivo} 
                                 onChange={manejarCambio} 
-                                placeholder="Ej: Sospecha maligna, Quiste"
+                                placeholder="Ej: sospecha maligna, quiste de leche, otro"
                             />
                         )}
                         <RadioGroup label="¿Tiene mama densa?" name="mamaDensa" options={opcionesMamaDensa} value={datos.mamaDensa} onChange={manejarCambio} />
@@ -397,7 +434,8 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Complicaciones en el embarazo/parto:" 
                                 name="complicacionesEmbarazo" 
-                                options={['Hipertensión Arterial Gestacional', 'Diabetes Gestacional', 'Pre-eclampsia', 'Parto Prematuro', 'Otro']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['hipertensión arterial gestacional', 'preeclampsia', 'eclampsia', 'diabetes gestacional', 'parto prematuro antes de las 37 semanas de gestación', 'ninguno']} 
                                 selectedValues={datos.complicacionesEmbarazo} 
                                 onChange={manejarCambio} 
                             />
@@ -411,22 +449,15 @@ function EditarPaciente() {
                             <CheckboxGroup 
                                 label="Estado Menstrual actual:" 
                                 name="menopausiaTipo" 
-                                options={['Histerectomía', 'Menopausia Natural', 'Perimenopausia', 'Ciclos Normales', 'Anticonceptivos']} 
+                                // Opciones actualizadas para coincidir con Formulario.jsx
+                                options={['presenta histerectomía', 'menopausia', 'otra', 'perimenopausia', 'ciclos normales', 'anticonceptivos']} 
                                 selectedValues={datos.menopausiaTipo} 
                                 onChange={manejarCambio} 
                             />
                         )}
                         
-                        <RadioGroup label="¿Padece de incontinencia o falta de orgasmos?" name="incontinenciaOrgasmos" options={opcionesSiNo} value={datos.incontinenciaOrgasmos} onChange={manejarCambio} />
-                        {datos.incontinenciaOrgasmos === 'Sí' && (
-                            <CheckboxGroup 
-                                label="Tipo de problema funcional:" 
-                                name="incontinenciaOrgasmosTipo" 
-                                options={['Incontinencia Urinaria', 'Falta o Ausencia de Orgasmos']} 
-                                selectedValues={datos.incontinenciaOrgasmosTipo} 
-                                onChange={manejarCambio} 
-                            />
-                        )}
+                        {/* --- SECCIÓN DE INCONTINENCIA ELIMINADA --- */}
+                        
                     </div>
 
                     
