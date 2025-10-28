@@ -456,7 +456,32 @@ function EditarPaciente() {
                             />
                         )}
                         
-                        {/* --- SECCIÓN DE INCONTINENCIA ELIMINADA --- */}
+                        <div className="space-y-6 mb-8 border p-4 rounded-lg bg-indigo-50/50 border-indigo-200">
+                        <h2 className="text-xl font-bold text-indigo-700">Datos Básicos y Mediciones</h2>
+                        
+                        {/* ESTOS SON LOS CAMPOS DE LA "SECCIÓN 4" */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <InputField label="DNI" name="dni" value={datos.dni} onChange={manejarCambio} placeholder="DNI" />
+                            <InputField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" value={datos.fechaNacimiento} onChange={manejarCambio} />
+                            <InputField label="Edad (Calculada)" name="edad" type="number" value={datos.edad} onChange={manejarCambio} min="18" max="120" placeholder="Edad" />
+                            <InputField label="Teléfono" name="telefono" value={datos.telefono} onChange={manejarCambio} placeholder="Teléfono" />
+                            <InputField label="Email" name="mail" value={datos.mail} onChange={manejarCambio} placeholder="Email" />
+                        </div>
+                        {/* ESTOS SON LOS CAMPOS DE LA "SECCIÓN 3" DEL FORMULARIO ORIGINAL */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <InputField label="Peso (kg)" name="peso" type="number" value={datos.peso} onChange={manejarCambio} min="30" max="300" placeholder="Ej: 75" />
+                            <InputField label="Talla (cm)" name="talla" type="number" value={datos.talla} onChange={manejarCambio} min="100" max="250" placeholder="Ej: 165" />
+                            <InputField label="Cintura (cm)" name="cintura" type="number" value={datos.cintura} onChange={manejarCambio} min="40" max="200" placeholder="Ej: 85" />
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <InputField label="Tensión Sistólica (mmhg)" name="tensionSistolica" type="number" value={datos.tensionSistolica} onChange={manejarCambio} min="60" max="250" placeholder="Ej: 120" />
+                            <InputField label="Tensión Diastólica (mmhg)" name="tensionDiastolica" type="number" value={datos.tensionDiastolica} onChange={manejarCambio} min="40" max="150" placeholder="Ej: 80" />
+                            <div className="sm:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700">Riesgo Actual</label>
+                                <p className="mt-1 text-lg font-bold text-gray-800">{datos.nivelRiesgo || 'N/D'}</p>
+                            </div>
+                        </div>
+                    </div>
                         
                     </div>
 
