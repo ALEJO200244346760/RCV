@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-// ASUMO que estos archivos existen en tu proyecto y se mantienen igual.
+import { useNavigate } from 'react-router-dom';
 import { calcularRiesgoCardiovascular } from './Calculadora';
 import { obtenerColorRiesgo, obtenerTextoRiesgo } from './ConstFormulario';
 import axiosInstance from '../axiosConfig';
@@ -7,6 +7,7 @@ import axiosInstance from '../axiosConfig';
 // *************************************************************************
 // ** MAPA DE DEVOLUCIONES (Sin cambios) **
 // *************************************************************************
+const navigate = useNavigate();
 
 const feedbackMessages = {
     infartoAcvTrombosis: {
