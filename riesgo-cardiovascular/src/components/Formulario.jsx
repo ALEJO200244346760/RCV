@@ -237,7 +237,7 @@ const ReporteDevolucion = ({ datos }) => {
 
             <div className="mt-8 flex justify-end">
                 <button
-                    onClick={() => navigate("/final")}
+                    onClick={() => navigate('/final')}
                     className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                     >
                     Terminar revisión
