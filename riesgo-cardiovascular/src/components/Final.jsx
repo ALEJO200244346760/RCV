@@ -4,7 +4,7 @@ const Final = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white text-center px-6">
       <img
-        src="/riesgo-cardiovascular/public/logorosa.png"
+        src="/logorosa.png"
         alt="Logo Octubre Rosa"
         className="w-64 mb-8"
       />
