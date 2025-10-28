@@ -845,7 +845,33 @@ const Formulario = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <InputField label="Peso (kg)" name="peso" type="number" min="1" placeholder="Ej: 75.5" isRequired={true} value={datosMujer.peso} onChange={handleChange} />
                                     <InputField label="Talla (cm)" name="talla" type="number" min="1" placeholder="Ej: 170" isRequired={true} value={datosMujer.talla} onChange={handleChange}/>
-                                    <InputField label="Cintura (cm)" name="cintura" type="number" min="1" placeholder="Ej: 90" value={datosMujer.cintura} onChange={handleChange} />
+                                    <div><InputField
+                                        label="Cintura (cm)"
+                                        name="cintura"
+                                        type="number"
+                                        min="1"
+                                        placeholder="Ej: 90"
+                                        value={datosMujer.cintura}
+                                        onChange={handleChange}
+                                    />
+
+                                    <div style={{ marginTop: '10px' }}>
+                                        <button
+                                        type="button"
+                                        onClick={() => handleChange({ target: { name: 'cintura', value: 89 } })}
+                                        style={{ marginRight: '10px' }}
+                                        >
+                                        Mayor que 88
+                                        </button>
+
+                                        <button
+                                        type="button"
+                                        onClick={() => handleChange({ target: { name: 'cintura', value: 88 } })}
+                                        >
+                                        Menor o igual que 88
+                                        </button>
+                                    </div>
+                                    </div>
                                     <InputField label="Tensión Sistólica (mm Hg)" name="tensionSistolica" type="number" min="60" max="300" placeholder="Ej: 120" isRequired={true} value={datosMujer.tensionSistolica} onChange={handleChange}/>
                                     <InputField label="Tensión Diastólica (mm Hg)" name="tensionDiastolica" type="number" min="40" max="200" placeholder="Ej: 80" value={datosMujer.tensionDiastolica} onChange={handleChange}/>
                                 </div>
