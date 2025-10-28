@@ -102,7 +102,6 @@ const ReporteDevolucion = ({ datos }) => {
     // Helper (Sin cambios)
     const ReporteItem = ({ pregunta, respuesta, subOpciones, mensaje }) => {
         // La lógica de .join() aquí AHORA ES SEGURA porque le pasaremos un array
-        const navigate = useNavigate();
         const colorRespuesta = respuesta === 'Sí' ? 'text-red-600' : 'text-green-700';
         return (
             <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
@@ -192,6 +191,8 @@ const ReporteDevolucion = ({ datos }) => {
     };
 
     // Render del Reporte (Sin cambios)
+    const navigate = useNavigate();
+
     return (
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl w-full">
             <h1 className="text-3xl font-extrabold text-indigo-700 mb-4 border-b pb-2">
