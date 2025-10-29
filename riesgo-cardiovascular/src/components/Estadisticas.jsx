@@ -88,7 +88,7 @@ function Estadisticas() {
   const [pacienteAEliminar, setPacienteAEliminar] = useState(null); 
   const [mensajeNotificacion, setMensajeNotificacion] = useState(null); 
 
-  // --- ESTADO DE FILTROS (VERSIÓN COMPLETA) ---
+  // --- ESTADO DE FILTROS (ACTUALIZADO) ---
   const [filtros, setFiltros] = useState({
     dni: '',
     edad: '',
@@ -108,6 +108,7 @@ function Estadisticas() {
     tuvoHijos: '',
     familiarCancerMama: '', // AÑADIDO
     mamaDensa: '', // AÑADIDO
+    cinturaFiltro: '', // <-- NUEVO FILTRO DE CINTURA
   });
 
   const handleDelete = (id) => {
@@ -219,6 +220,22 @@ function Estadisticas() {
       if (filtros.diabetes && !String(p.medicacionCondiciones || '').toLowerCase().includes('diabetes')) return false;
       if (filtros.hipertension && !String(p.medicacionCondiciones || '').toLowerCase().includes('hipertensión')) return false;
       
+      // --- NUEVO FILTRO DE CINTURA ---
+      if (filtros.cinturaFiltro) {
+          const valorCintura = parseFloat(p.cintura);
+          
+          // Si el valor no es un número válido (ej: 'N/A' o campo vacío), no pasa el filtro.
+          if (isNaN(valorCintura)) return false; 
+          
+          const esMayor88 = valorCintura > 88;
+          
+          if (filtros.cinturaFiltro === 'Mayor 88') {
+              if (!esMayor88) return false;
+          } else if (filtros.cinturaFiltro === 'Menor o Igual 88') {
+              if (esMayor88) return false;
+          }
+      }
+      
       return true;
     });
 
@@ -239,7 +256,7 @@ function Estadisticas() {
           </div>
       </div>
       
-      {/* --- PANEL DE FILTROS (VERSIÓN COMPLETA) --- */}
+      {/* --- PANEL DE FILTROS (ACTUALIZADO) --- */}
       {mostrarFiltros && (
         <div className="p-6 bg-white rounded-xl shadow-lg mb-8">
           <h2 className="text-xl font-bold text-gray-700 mb-4">Filtros</h2>
@@ -262,6 +279,13 @@ function Estadisticas() {
             <select name="mamaDensa" value={filtros.mamaDensa} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Mama Densa</option><option value="Sí">Sí</option><option value="No">No</option></select>
             <select name="reproduccionAsistida" value={filtros.reproduccionAsistida} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Rep. Asistida</option><option value="Sí">Sí</option><option value="No">No</option></select>
             <select name="tuvoHijos" value={filtros.tuvoHijos} onChange={handleFiltroChange} className="p-2 border rounded-lg"><option value="">Tuvo Hijos</option><option value="Sí">Sí</option><option value="No">No</option></select>
+            
+            {/* NUEVO FILTRO DE CINTURA */}
+            <select name="cinturaFiltro" value={filtros.cinturaFiltro} onChange={handleFiltroChange} className="p-2 border rounded-lg">
+              <option value="">Cintura (Todos)</option>
+              <option value="Mayor 88">Mayor a 88 cm</option>
+              <option value="Menor o Igual 88">Menor o Igual a 88 cm</option>
+            </select>
           </div>
           <div className="mt-4 flex justify-end"><button onClick={limpiarFiltros} className="px-4 py-2 text-sm font-medium bg-gray-500 text-white rounded-lg hover:bg-gray-600">Limpiar Filtros</button></div>
         </div>
