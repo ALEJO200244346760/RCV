@@ -95,7 +95,7 @@ const feedbackMessages = {
 };
 
 // *************************************************************************
-// ** COMPONENTE DE DEVOLUCIÓN (MODIFICADO) **
+// ** COMPONENTE DE DEVOLUCIÓN (MODIFICADO CON BOTONES DE ACCIÓN) **
 // *************************************************************************
 const ReporteDevolucion = ({ datos }) => {
     
@@ -190,7 +190,35 @@ const ReporteDevolucion = ({ datos }) => {
     return mensaje;
     };
 
-    // Render del Reporte (Sin cambios)
+    // --- INICIO DE CÓDIGO AÑADIDO: MANEJADORES DE ACCIÓN ---
+    const handlePrint = () => {
+        window.print(); // Dispara la impresión del navegador (permite "Guardar como PDF")
+    };
+
+    const handleEmail = () => {
+        if (datos.mail) {
+            // Abre el cliente de email del usuario
+            window.location.href = `mailto:${datos.mail}?subject=Resultados de su Informe de Salud Cardiovascular`;
+        } else {
+            alert('El paciente no tiene un email cargado.');
+        }
+    };
+    
+    const handleWhatsApp = () => {
+         if (datos.telefono) {
+            // Elimina espacios o símbolos comunes y asume un prefijo de país si no está
+            // NOTA: Esto es básico. Un número de teléfono internacional real (ej: +549...) 
+            // es necesario para que wa.me funcione de forma fiable.
+            const telefonoLimpio = datos.telefono.replace(/[\s-()]/g, '');
+            window.open(`https://wa.me/${telefonoLimpio}`, '_blank');
+        } else {
+            alert('El paciente no tiene un teléfono cargado.');
+        }
+    };
+    // --- FIN DE CÓDIGO AÑADIDO ---
+
+
+    // Render del Reporte
     const navigate = useNavigate();
 
     return (
@@ -237,21 +265,45 @@ const ReporteDevolucion = ({ datos }) => {
                 {feedbackCintura()}
             </div>
 
-            <div className="mt-8 flex justify-end">
+            {/* --- SECCIÓN DE BOTONES MODIFICADA --- */}
+            <div className="mt-8 flex flex-wrap justify-end gap-3 print:hidden"> {/* Clase print:hidden para ocultar al imprimir */}
+                
+                {/* Botones Añadidos */}
+                <button
+                    onClick={handlePrint}
+                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-gray-600 hover:bg-gray-700"
+                >
+                    Imprimir / Guardar PDF
+                </button>
+                <button
+                    onClick={handleEmail}
+                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                >
+                    Enviar por Email
+                </button>
+                 <button
+                    onClick={handleWhatsApp}
+                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-teal-500 hover:bg-teal-600"
+                >
+                    WhatsApp
+                </button>
+                
+                {/* Botón original */}
                 <button
                     onClick={() => navigate('/final')}
                     className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                    >
+                >
                     Terminar revisión
                 </button>
             </div>
+            {/* --- FIN DE SECCIÓN DE BOTONES --- */}
         </div>
     );
 };
 
 
 // *************************************************************************
-// ** ESTADO INICIAL (Sin cambios) **
+// ** ESTADO INICIAL (MODIFICADO CON "aceptaCondiciones") **
 // *************************************************************************
 
 const datosInicialesMujer = {
@@ -262,6 +314,7 @@ const datosInicialesMujer = {
     edad: '',
     mail: '',
     genero: 'femenino',
+    aceptaCondiciones: false, // <-- AÑADIDO
 
     // --- Historial y Hábitos ---
     infartoAcvTrombosis: null,
@@ -421,7 +474,7 @@ const Formulario = () => {
         return age >= 0 ? age.toString() : '';
     };
 
-    // --- Manejadores de Estado (Sin cambios) ---
+    // --- Manejadores de Estado (MODIFICADO CON "handleSimpleCheckbox") ---
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (name === 'fechaNacimiento') {
@@ -464,7 +517,15 @@ const Formulario = () => {
         });
     };
 
-    // --- Lógica de Envío ---
+    // --- INICIO DE CÓDIGO AÑADIDO: Manejador para el checkbox simple ---
+    const handleSimpleCheckbox = (e) => {
+        const { name, checked } = e.target;
+        setDatosMujer(prev => ({ ...prev, [name]: checked }));
+    };
+    // --- FIN DE CÓDIGO AÑADIDO ---
+
+
+    // --- Lógica de Envío (MODIFICADA CON VALIDACIÓN DE "aceptaCondiciones") ---
     const validarCampos = () => {
         if (!datosMujer.dni || !datosMujer.fechaNacimiento || !datosMujer.tensionSistolica || !datosMujer.peso || !datosMujer.talla) {
             setNivelRiesgo(null); // Limpiar riesgo si la validación falla
@@ -472,6 +533,16 @@ const Formulario = () => {
             setMostrarModal(true);
             return false;
         }
+
+        // --- INICIO DE CÓDIGO AÑADIDO: Validación de condiciones ---
+        if (!datosMujer.aceptaCondiciones) {
+            setNivelRiesgo(null);
+            setModalAdvertencia('Debe aceptar las condiciones de uso de datos para poder continuar.');
+            setMostrarModal(true);
+            return false;
+        }
+        // --- FIN DE CÓDIGO AÑADIDO ---
+
         const edadNum = parseInt(datosMujer.edad, 10);
         if (isNaN(edadNum) || edadNum < 1) {
             setNivelRiesgo(null);
@@ -564,6 +635,7 @@ const Formulario = () => {
                 nivelRiesgo: nivelRiesgo,
             };
             delete payload.colesterol; // No se envía 'colesterol'
+            delete payload.aceptaCondiciones; // No es necesario guardar esto en la BD (o sí, según tu lógica de negocio)
             
             await axiosInstance.post('/api/pacientes', payload);
 
@@ -731,7 +803,7 @@ const Formulario = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                                     <RadioGroup 
-                                        label="¿Antecedentes de tumores de mama?" 
+                                        label="¿Antecedentes de cancer de mama?" 
                                         name="tumoresMama" 
                                         value={datosMujer.tumoresMama}
                                         onChange={handleRadioToggle}
@@ -887,7 +959,7 @@ const Formulario = () => {
                                 </div>
                             </div>
 
-                            {/* --- SECCIÓN 4: ENTREGA DE INFORME --- */}
+                            {/* --- SECCIÓN 4: ENTREGA DE INFORME (MODIFICADA CON CHECKBOX DE CONDICIONES) --- */}
                             <div className="space-y-6 p-4 border border-gray-300 rounded-lg bg-gray-100">
                                 <h2 className="text-xl font-bold text-gray-800 border-b pb-1">4. Datos de Entrega de Informe</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -897,6 +969,24 @@ const Formulario = () => {
                                     <InputField label="TELÉFONO" name="telefono" type="tel" placeholder="Nro. de contacto" value={datosMujer.telefono} onChange={handleChange}/>
                                     <InputField label="MAIL" name="mail" type="email" placeholder="Correo electrónico" value={datosMujer.mail} onChange={handleChange}/>
                                 </div>
+
+                                {/* --- INICIO DE CÓDIGO AÑADIDO: Checkbox de Condiciones --- */}
+                                <div className="mt-4 p-3 border border-gray-300 bg-white rounded-md">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            name="aceptaCondiciones"
+                                            checked={datosMujer.aceptaCondiciones}
+                                            onChange={handleSimpleCheckbox}
+                                            className="form-checkbox h-5 w-5 text-indigo-600 rounded"
+                                        />
+                                        <span className="ml-3 text-sm text-gray-700">
+                                            Acepto las condiciones: que mis datos personales serán resguardados y sólo se utilizará la información con fines de estadística poblacional.
+                                        </span>
+                                    </label>
+                                </div>
+                                {/* --- FIN DE CÓDIGO AÑADIDO --- */}
+
                             </div>
 
                             {/* --- BOTONES DE ACCIÓN --- */}
