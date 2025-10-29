@@ -4,6 +4,7 @@ import React from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 
+// 1. Registro del BarElement para el gráfico de barras
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 // Colores base para gráficos (adaptados a la paleta de Tailwind/Moderno)
@@ -40,6 +41,21 @@ const pieOptions = (aggregation) => ({
     }
 });
 
+// Opciones para el nuevo gráfico de barras (comparativo)
+const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        x: { stacked: false }, 
+        y: { stacked: false, beginAtZero: true }
+    },
+    plugins: {
+        legend: { position: 'top' },
+        title: { display: false }
+    }
+};
+
+
 // Componente de envoltura para cada gráfico
 const ChartWrapper = ({ title, chartType, data, options }) => {
     return (
@@ -47,7 +63,7 @@ const ChartWrapper = ({ title, chartType, data, options }) => {
             <h3 className="text-center text-lg font-semibold text-gray-800 mb-4">{title}</h3>
             <div className="flex justify-center h-64 w-full">
                 {chartType === 'Pie' && <Pie data={data} options={options} />}
-                {/* Aquí podrías añadir un Bar chart si lo usas: {chartType === 'Bar' && <Bar data={data} options={options} />} */}
+                {chartType === 'Bar' && <Bar data={data} options={options} />} {/* <-- SOPORTE PARA BAR CHART */}
             </div>
         </div>
     );
@@ -81,6 +97,27 @@ const aggregateData = (pacientes) => {
         });
     });
 
+    // --- AGREGACIÓN ESPECIAL: RIESGO vs CINTURA (NUEVA LÓGICA) ---
+    const riesgoVsCintura = {
+        'Mayor 88': { 'Bajo': 0, 'Moderado': 0, 'Alto': 0, 'Muy Alto': 0 },
+        'Menor o Igual 88': { 'Bajo': 0, 'Moderado': 0, 'Alto': 0, 'Muy Alto': 0 },
+    };
+
+    pacientes.forEach(p => {
+        const valorCintura = parseFloat(p.cintura);
+        const grupoCintura = (isNaN(valorCintura) || valorCintura === 0) 
+            ? null 
+            : (valorCintura > 88 ? 'Mayor 88' : 'Menor o Igual 88');
+        
+        // Extrae el nivel de riesgo (Bajo, Moderado, Alto, Muy Alto) del string
+        const riesgo = p.nivelRiesgo ? p.nivelRiesgo.split(' ').pop() : 'N/D'; 
+
+        if (grupoCintura && riesgo !== 'N/D' && riesgoVsCintura[grupoCintura] && riesgoVsCintura[grupoCintura][riesgo] !== undefined) {
+            riesgoVsCintura[grupoCintura][riesgo]++;
+        }
+    });
+    // ------------------------------------------------------------------
+
     // Convertir la agregación a formato Chart.js Data
     const chartsData = {};
 
@@ -100,6 +137,26 @@ const aggregateData = (pacientes) => {
             }]
         };
     });
+    
+    // Configurar el nuevo dataset de Riesgo vs Cintura
+    const riesgoLabels = ['Bajo', 'Moderado', 'Alto', 'Muy Alto'];
+    
+    chartsData.dataRiesgoVsCintura = {
+        labels: riesgoLabels,
+        datasets: [
+            {
+                label: 'Cintura > 88 cm',
+                data: riesgoLabels.map(risk => riesgoVsCintura['Mayor 88'][risk]),
+                backgroundColor: '#F472B6', // Rosa intenso
+            },
+            {
+                label: 'Cintura ≤ 88 cm',
+                data: riesgoLabels.map(risk => riesgoVsCintura['Menor o Igual 88'][risk]),
+                backgroundColor: '#93C5FD', // Azul suave
+            },
+        ]
+    };
+    // -------------------------------------------------
 
     return chartsData;
 };
@@ -123,7 +180,8 @@ function EstadisticasGraficos({ pacientes: pacientesFiltrados = [] }) {
         dataNivelRiesgo, dataFumaDiario, dataActividadFisica, dataConsumoAlcoholRiesgo, dataHorasSueno, dataEstresAngustiaCronica,
         dataInfartoAcvTrombosis, dataEnfermedadRenalInsuficiencia, dataHivHepatitis, dataEnfermedadesAutoinmunes, dataTomaMedicacionDiario,
         dataTumoresMama, dataFamiliarCancerMama, dataPuncionMama, dataMamaDensa, dataTuvoHijos, dataReproduccionAsistida,
-        dataAbortosSindromeAntifosfolipidico, dataMenstruacionUltima
+        dataAbortosSindromeAntifosfolipidico, dataMenstruacionUltima,
+        dataRiesgoVsCintura // <-- NUEVO DATASET
     } = chartsData;
 
 
@@ -133,9 +191,17 @@ function EstadisticasGraficos({ pacientes: pacientesFiltrados = [] }) {
                 Análisis Gráfico de Pacientes ({pacientesFiltrados.length})
             </h2>
             
-            {/* --- 1. RIESGO CARDIOVASCULAR Y MEDIDAS GENERALES --- */}
+            {/* --- 1. RIESGO CARDIOVASCULAR Y MEDIDAS GENERALES (ACTUALIZADO CON GRÁFICO DE BARRAS) --- */}
             <h3 className="text-xl font-bold text-indigo-600 mb-4 mt-6">Riesgo y Hábitos de Vida</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* NUEVO GRÁFICO DE BARRAS */}
+                <ChartWrapper 
+                    title="Riesgo Cardiovascular por Circunferencia de Cintura" 
+                    chartType="Bar" 
+                    data={dataRiesgoVsCintura} 
+                    options={barOptions} 
+                /> 
                 
                 <ChartWrapper title="Nivel de Riesgo Cardiovascular" chartType="Pie" data={dataNivelRiesgo} options={pieOptions(dataNivelRiesgo.aggregation)} />
                 <ChartWrapper title="Fuma a Diario" chartType="Pie" data={dataFumaDiario} options={pieOptions(dataFumaDiario.aggregation)} />
