@@ -275,18 +275,6 @@ const ReporteDevolucion = ({ datos }) => {
                 >
                     Imprimir / Guardar PDF
                 </button>
-                <button
-                    onClick={handleEmail}
-                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                >
-                    Enviar por Email
-                </button>
-                 <button
-                    onClick={handleWhatsApp}
-                    className="px-6 py-3 rounded-md shadow-sm text-sm font-medium text-white bg-teal-500 hover:bg-teal-600"
-                >
-                    WhatsApp
-                </button>
                 
                 {/* Botón original */}
                 <button
